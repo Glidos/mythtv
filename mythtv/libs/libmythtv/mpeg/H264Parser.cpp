@@ -185,28 +185,28 @@ bool H264Parser::new_AU(void)
       one or more of the following ways.
 
       - frame_num differs in value. The value of frame_num used to
-      test this condition is the value of frame_num that appears in
-      the syntax of the slice header, regardless of whether that value
-      is inferred to have been equal to 0 for subsequent use in the
-      decoding process due to the presence of
-      memory_management_control_operation equal to 5.
+        test this condition is the value of frame_num that appears in
+        the syntax of the slice header, regardless of whether that value
+        is inferred to have been equal to 0 for subsequent use in the
+        decoding process due to the presence of
+        memory_management_control_operation equal to 5.
           Note: If the current picture is an IDR picture FrameNum and
           PrevRefFrameNum are set equal to 0.
       - pic_parameter_set_id differs in value.
       - field_pic_flag differs in value.
       - bottom_field_flag is present in both and differs in value.
-      - nal_ref_idc differs in value with one of the nal_ref_idc values
-      being equal to 0.
+      - nal_ref_idc differs in value with one of the nal_ref_idc
+        values being equal to 0.
       - pic_order_cnt_type is equal to 0 for both and either
-      pic_order_cnt_lsb differs in value, or delta_pic_order_cnt_bottom
-      differs in value.
+        pic_order_cnt_lsb differs in value, or delta_pic_order_cnt_bottom
+        differs in value.
       - pic_order_cnt_type is equal to 1 for both and either
-      delta_pic_order_cnt[0] differs in value, or
-      delta_pic_order_cnt[1] differs in value.
+        delta_pic_order_cnt[0] differs in value, or
+        delta_pic_order_cnt[1] differs in value.
       - nal_unit_type differs in value with one of the nal_unit_type values
-      being equal to 5.
+        being equal to 5.
       - nal_unit_type is equal to 5 for both and idr_pic_id differs in
-      value.
+        value.
 
       NOTE – Some of the VCL NAL units in redundant coded pictures or some
       non-VCL NAL units (e.g. an access unit delimiter NAL unit) may also
@@ -232,6 +232,9 @@ bool H264Parser::new_AU(void)
         else if ((bottom_field_flag != -1 && prev_bottom_field_flag != -1) &&
                  bottom_field_flag != prev_bottom_field_flag)
             result = true;
+        else if ((nal_ref_idc == 0 || prev_nal_ref_idc == 0) &&
+                 nal_ref_idc != prev_nal_ref_idc)
+            result = true;
         else if ((pic_order_cnt_type == 0 && prev_pic_order_cnt_type == 0) &&
                  (pic_order_cnt_lsb != prev_pic_order_cnt_lsb ||
                   delta_pic_order_cnt_bottom !=
@@ -255,6 +258,7 @@ bool H264Parser::new_AU(void)
     prev_pic_parameter_set_id = pic_parameter_set_id;
     prev_field_pic_flag = field_pic_flag;
     prev_bottom_field_flag = bottom_field_flag;
+    prev_nal_ref_idc = nal_ref_idc;
     prev_pic_order_cnt_lsb = pic_order_cnt_lsb;
     prev_delta_pic_order_cnt_bottom = delta_pic_order_cnt_bottom;
     prev_delta_pic_order_cnt[0] = delta_pic_order_cnt[0];
@@ -390,12 +394,6 @@ uint32_t H264Parser::addBytes(const uint8_t  *bytes,
                     AU_pending = true;
                     AU_offset = stream_offset;
                 }
-                else if ((nal_ref_idc == 0 || prev_nal_ref_idc == 0) &&
-                         nal_ref_idc != prev_nal_ref_idc)
-                {
-                    AU_pending = true;
-                    AU_offset = stream_offset;
-                }
             }
 
             if (AU_pending && NALisSlice(nal_unit_type))
@@ -419,8 +417,6 @@ uint32_t H264Parser::addBytes(const uint8_t  *bytes,
             }
             else
                 on_frame = on_key_frame = false;
-
-            prev_nal_ref_idc = nal_ref_idc;
 
             return byteP - bytes;
         }
@@ -1057,7 +1053,7 @@ void H264Parser::vui_parameters(GetBitContext * gb)
 
 uint H264Parser::frameRate(void) const
 {
-    uint64_t	num;
+    uint64_t    num;
     uint64_t    fps;
 
     num   = 500 * (uint64_t)timeScale; /* 1000 * 0.5 */
