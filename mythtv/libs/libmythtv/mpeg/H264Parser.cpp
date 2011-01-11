@@ -92,6 +92,8 @@ static const float eps = 1E-5;
 
 H264Parser::H264Parser(void)
 {
+    rbsp_buffer      = NULL;
+    rbsp_buffer_size = 0;
     Reset();
     I_is_keyframe = true;
     memset(&gb, 0, sizeof(gb));
@@ -263,6 +265,44 @@ bool H264Parser::new_AU(void)
     return result;
 }
 
+uint32_t H264Parser::load_rbsp(const uint8_t *byteP, uint32_t byte_count)
+{
+    uint32_t rbsp_index        = 0;
+    uint32_t consecutive_zeros = 0;
+
+    if(rbsp_buffer_size < byte_count)
+    {
+        delete [] rbsp_buffer;
+        rbsp_buffer_size = 0;
+
+        rbsp_buffer = new uint8_t[byte_count];
+        if(rbsp_buffer == NULL)
+            return 0;
+
+        rbsp_buffer_size = byte_count;
+    }
+
+    /* From rbsp while we have data and we don't run into a
+     * new start code */
+    while(byte_count && (consecutive_zeros < 2 || *byteP != 0x01))
+    {
+        /* Copy the byte into the rbsp, unless it
+         * is the 0x03 in a 0x000003 */
+        if(consecutive_zeros < 2 || *byteP != 0x03)
+            rbsp_buffer[rbsp_index++] = *byteP;
+
+        if(*byteP == 0)
+            consecutive_zeros += 1;
+        else
+            consecutive_zeros = 0;
+
+        byteP += 1;
+        byte_count -= 1;
+    }
+
+    return rbsp_index;
+}
+
 uint32_t H264Parser::addBytes(const uint8_t  *bytes,
                               const uint32_t  byte_count,
                               const uint64_t  stream_offset)
@@ -306,13 +346,17 @@ uint32_t H264Parser::addBytes(const uint8_t  *bytes,
             if (nal_unit_type == SPS || nal_unit_type == PPS ||
                 nal_unit_type == SEI || NALisSlice(nal_unit_type))
             {
+                uint32_t rbsp_size;
+
+                rbsp_size = load_rbsp(byteP, endP - byteP);
+
                 /*
                   bitstream buffer, must be FF_INPUT_BUFFER_PADDING_SIZE
                   bytes larger then the actual read bits
                 */
-                if (byteP + 1 + FF_INPUT_BUFFER_PADDING_SIZE < endP)
+                if (FF_INPUT_BUFFER_PADDING_SIZE <= rbsp_size)
                 {
-                    init_get_bits(&gb, byteP, 8 * (endP - byteP));
+                    init_get_bits(&gb, rbsp_buffer, 8 * rbsp_size);
 
                     if (nal_unit_type == SEI)
                     {
@@ -335,8 +379,6 @@ uint32_t H264Parser::addBytes(const uint8_t  *bytes,
                         if (new_AU())
                             set_AU_pending(stream_offset);
                     }
-
-                    byteP += (get_bits_count(&gb) / 8);
                 }
             }
             else if (!AU_pending)
