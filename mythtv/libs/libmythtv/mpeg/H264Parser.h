@@ -101,7 +101,7 @@ class H264Parser {
     };
 
     H264Parser(void);
-    ~H264Parser(void) {;}
+    ~H264Parser(void) {delete [] rbsp_buffer;}
 
     uint32_t addBytes(const uint8_t  *bytes,
                       const uint32_t  byte_count,
@@ -168,6 +168,7 @@ class H264Parser {
         }
 
     bool new_AU(void);
+    uint32_t load_rbsp(const uint8_t *byteP, uint32_t byte_count);
     bool decode_Header(GetBitContext *gb);
     void decode_SPS(GetBitContext *gb);
     void decode_PPS(GetBitContext * gb);
@@ -181,6 +182,8 @@ class H264Parser {
     bool       I_is_keyframe;
 
     uint32_t   sync_accumulator;
+    uint8_t   *rbsp_buffer;
+    uint32_t   rbsp_buffer_size;
     GetBitContext gb;
 
     int        prev_frame_num, frame_num;
