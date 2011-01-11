@@ -638,7 +638,14 @@ void H264Parser::decode_SPS(GetBitContext * gb)
         {
             for (int idx = 0; idx < ((chroma_format_idc != 3) ? 8 : 12); ++idx)
             {
-                get_bits1(gb);  // scaling_list
+                if(get_bits1(gb)) // Scaling list presnent
+                {
+                    int sl_n = ((idx < 6) ? 16 : 64);
+                    for(int sl_i = 0; sl_i < sl_n; sl_i++)
+                    {
+                        get_se_golomb(gb);
+                    }
+                }
             }
         }
     }
