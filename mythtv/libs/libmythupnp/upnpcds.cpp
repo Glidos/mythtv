@@ -190,13 +190,15 @@ bool UPnpCDS::ProcessRequest( HttpWorkerThread *pThread, HTTPRequest *pRequest )
 
 static UPnpCDSClientException clientExceptions[] = {
     // Windows Media Player version 12
-    { CDS_ClientWMP,        "Windows-Media-Player" },
+    { CDS_ClientWMP,        "User-Agent","Windows-Media-Player/" },
     // Windows Media Player version < 12
-    { CDS_ClientWMP,        "Mozilla/4.0 (compatible; UPnP/1.0; Windows 9x" },
+    { CDS_ClientWMP,        "User-Agent","Mozilla/4.0 (compatible; UPnP/1.0; Windows 9x" },
     // XBMC
-    { CDS_ClientXBMC,       "Platinum" },
+    { CDS_ClientXBMC,       "User-Agent","Platinum/" },
     // XBox 360
-    { CDS_ClientXBox,       "Xbox" },
+    { CDS_ClientXBox,       "User-Agent","Xbox" },
+    // Sony Blu-ray players
+    { CDS_ClientSonyDB,     "X-AV-Client-Info","cn=\"Sony Corporation\"; mn=\"Blu-ray Disc Player\"" },
 };
 static uint clientExceptionCount = sizeof(clientExceptions) / 
                                    sizeof(clientExceptions[0]);
@@ -213,14 +215,24 @@ void UPnpCDS::DetermineClient( HTTPRequest *pRequest, UPnpCDSRequest *pCDSReques
     {
         UPnpCDSClientException *except = &clientExceptions[i];
 
-        int idx = sUserAgent.indexOf(except->sClientId);
+	QString sHeaderValue = pRequest->GetHeaderValue( except->sHeaderKey, "" );
+        int idx = sHeaderValue.indexOf(except->sClientId);
         if (idx != -1)
         {
             pCDSRequest->m_eClient = except->nClientType;;
+            
+            idx += except->sClientId.length();
+
+            // If we have a / at the end of the string then we 
+            // increment the string to skip over it
+            if ( sHeaderValue[ idx ] == '/')
+            {
+                ++ idx;
+            }
 
             // Now find the version number
             QString version = 
-               sUserAgent.mid( idx + except->sClientId.length() + 1 ).trimmed();
+               sHeaderValue.mid( idx ).trimmed();
             idx = version.indexOf( '.' );
             if (idx != -1)
             {
