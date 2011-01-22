@@ -174,7 +174,7 @@ class H264Parser {
 
     bool new_AU(void);
     void resetRBSP(void);
-    void fillRBSP(const uint8_t *byteP, uint32_t byte_count);
+    void fillRBSP(const uint8_t *byteP, uint32_t byte_count, bool found_start_code);
     void processRBSP(bool rbsp_complete);
     bool decode_Header(GetBitContext *gb);
     void decode_SPS(GetBitContext *gb);
