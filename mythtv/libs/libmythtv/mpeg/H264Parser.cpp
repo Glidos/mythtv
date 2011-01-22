@@ -277,11 +277,11 @@ void H264Parser::resetRBSP(void)
     have_unfinished_NAL = false;
 }
 
-void H264Parser::fillRBSP(const uint8_t *byteP, uint32_t byte_count)
+void H264Parser::fillRBSP(const uint8_t *byteP, uint32_t byte_count, bool found_start_code)
 {
     /*
       bitstream buffer, must be FF_INPUT_BUFFER_PADDING_SIZE
-      bytes larger then the actual read bits
+      bytes larger then the actual data
     */
     uint32_t required_size = rbsp_index + byte_count + FF_INPUT_BUFFER_PADDING_SIZE;
     if(rbsp_buffer_size < required_size)
@@ -291,7 +291,7 @@ void H264Parser::fillRBSP(const uint8_t *byteP, uint32_t byte_count)
 
         if(new_buffer == NULL)
         {
-            /* Discard the new bytes and allow parsing of
+            /* Allocation failed. Discard the new bytes and allow parsing of
              * the current NAL to fail VERBOSE */
             return;
         }
@@ -304,9 +304,8 @@ void H264Parser::fillRBSP(const uint8_t *byteP, uint32_t byte_count)
         rbsp_buffer_size = required_size;
     }
 
-    /* From rbsp while we have data and we don't run into a
-     * new start code */
-    while(byte_count && (consecutive_zeros < 2 || *byteP != 0x01))
+    /* Fill rbsp while we have data */
+    while(byte_count)
     {
         /* Copy the byte into the rbsp, unless it
          * is the 0x03 in a 0x000003 */
@@ -322,7 +321,26 @@ void H264Parser::fillRBSP(const uint8_t *byteP, uint32_t byte_count)
         byte_count -= 1;
     }
 
-    /* Stick some zeros on the end to run into */
+    /* If we've found the next start code then that, plus the first byte of
+     * the next NAL, plus the preceding zero bytes will all be in the rbsp
+     * buffer. Move rbsp_index++ back to the end of the actual rbsp data. We
+     * need to know the correct size of the rbsp to decode some NALs. */
+    if(found_start_code)
+    {
+        if(rbsp_index >= 4)
+        {
+            rbsp_index -= 4;
+            while(rbsp_index > 0 && rbsp_buffer[rbsp_index-1] == 0)
+                rbsp_index -= 1;
+        }
+        else
+        {
+            /* This should never happen.
+             * VERBOSE */
+        }
+    }
+
+    /* Stick some zeros on the end for get_bits to run into */
     for(uint32_t i = 0; i < FF_INPUT_BUFFER_PADDING_SIZE; i++)
         rbsp_buffer[rbsp_index + i] = 0;
 }
@@ -346,23 +364,25 @@ uint32_t H264Parser::addBytes(const uint8_t  *bytes,
 
         found_start_code = ((sync_accumulator & 0xffffff00) == 0x00000100);
 
-        /* Between bytes and byteP we potentially have some more
-         * bytes of a NAL we've had insufficient of to parse so far
-         * (plus some bytes of start code) */
+        /* Between startP and endP we potentially have some more
+         * bytes of a NAL that we've been parsing (plus some bytes of
+         * start code) */
         if(have_unfinished_NAL)
         {
-            fillRBSP(startP, endP - startP);
-            processRBSP(found_start_code);
+            fillRBSP(startP, endP - startP, found_start_code);
+            processRBSP(found_start_code); /* Call may set have_uinfinished_NAL
+                                            * to false */
         }
 
+        /* Dealt with everything up to endP */
         startP = endP;
 
         if (found_start_code)
         {
             if(have_unfinished_NAL)
             {
-                /* We've found a new start code, without complete
-                 * parsing of the previous NAL. Either there's a
+                /* We've found a new start code, without completely
+                 * parsing the previous NAL. Either there's a
                  * problem with the stream or with this parser.
                  * VERBOSE */
             }
@@ -404,7 +424,8 @@ uint32_t H264Parser::addBytes(const uint8_t  *bytes,
                 /* This is a NAL we need to parse. We may have the body
                  * of it in the part of the stream past to us this call,
                  * or we may get the rest in subsequent calls to addBytes.
-                 * Either way, we have yet to fill the rbsp buffer. */
+                 * Either way, we set have_unfinished_NAL, so that we
+                 * start filling the rbsp buffer */
                 have_unfinished_NAL = true;
             }
             else if (nal_unit_type == AU_DELIMITER ||
@@ -505,7 +526,7 @@ bool H264Parser::decode_Header(GetBitContext *gb)
 
     if (log2_max_frame_num == 0 || pic_order_present_flag == -1)
     {
-        // SPS or PPS has not been parsed yet
+        // SPS or PPS has not been parsed yet VERBOSE */
         return false;
     }
 
@@ -954,30 +975,34 @@ void H264Parser::decode_SEI(GetBitContext *gb)
 
     int type = 0, size = 0;
 
-    do {
-        type += show_bits(gb, 8);
-    } while (get_bits(gb, 8) == 255);
-
-    do {
-        size += show_bits(gb, 8);
-    } while (get_bits(gb, 8) == 255);
-
-    switch (type)
+    /* A message requires at least 2 bytes, and then
+     * there's the stop bit plus alignment, so there
+     * can be no message in less than 24 bits */
+    while(get_bits_left(gb) >= 24)
     {
-        case SEI_TYPE_RECOVERY_POINT:
-            recovery_frame_cnt = get_ue_golomb(gb);
-            exact_match_flag = get_bits1(gb);
-            broken_link_flag = get_bits1(gb);
-            changing_group_slice_idc = get_bits(gb, 2);
-            au_contains_keyframe_message = (recovery_frame_cnt >= 0);
-            return;
+        do {
+            type += show_bits(gb, 8);
+        } while (get_bits(gb, 8) == 255);
 
-        default:
-            skip_bits(gb, size * 8);
-            break;
+        do {
+            size += show_bits(gb, 8);
+        } while (get_bits(gb, 8) == 255);
+
+        switch (type)
+        {
+            case SEI_TYPE_RECOVERY_POINT:
+                recovery_frame_cnt = get_ue_golomb(gb);
+                exact_match_flag = get_bits1(gb);
+                broken_link_flag = get_bits1(gb);
+                changing_group_slice_idc = get_bits(gb, 2);
+                au_contains_keyframe_message = (recovery_frame_cnt >= 0);
+                return;
+
+            default:
+                skip_bits(gb, size * 8);
+                break;
+        }
     }
-
-    align_get_bits(gb);
 }
 
 void H264Parser::vui_parameters(GetBitContext * gb)
