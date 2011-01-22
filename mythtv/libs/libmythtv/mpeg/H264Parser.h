@@ -23,6 +23,7 @@
 #ifndef H264PARSER_H
 #define H264PARSER_H
 
+#include <string>
 #include <stdint.h>
 #include "mythconfig.h"
 #include "compat.h" // for uint on Darwin, MinGW
@@ -107,6 +108,7 @@ class H264Parser {
     H264Parser(void);
     ~H264Parser(void) {delete [] rbsp_buffer;}
 
+    std::string NALunitType_str(uint8_t nal_unit_type);
     uint32_t addBytes(const uint8_t  *bytes,
                       const uint32_t  byte_count,
                       const uint64_t  stream_offset);

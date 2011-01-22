@@ -1,5 +1,7 @@
 // MythTV headers
 #include "H264Parser.h"
+#include <iostream>
+#include <sstream>
 
 extern "C" {
 // from libavcodec
@@ -224,35 +226,62 @@ bool H264Parser::new_AU(void)
         // Need previous slice information for comparison
 
         if (nal_unit_type != SLICE_IDR && frame_num != prev_frame_num)
+        {
             result = true;
+            std::cout << "frame_num = " << frame_num
+                      << " prev_frame_num = " << prev_frame_num << "\n";
+        }
         else if (prev_pic_parameter_set_id != -1 &&
                  pic_parameter_set_id != prev_pic_parameter_set_id)
+        {
             result = true;
+            std::cout << "pic_parameter_set_id != prev_pic_parameter_set_id\n";
+        }
         else if (field_pic_flag != prev_field_pic_flag)
+        {
             result = true;
+            std::cout << "field_pic_flag != prev_field_pic_flag\n";
+        }
         else if ((bottom_field_flag != -1 && prev_bottom_field_flag != -1) &&
                  bottom_field_flag != prev_bottom_field_flag)
+        {
             result = true;
+            std::cout << "bottom_field_flag != prev_bottom_field_flag\n";
+        }
         else if ((nal_ref_idc == 0 || prev_nal_ref_idc == 0) &&
                  nal_ref_idc != prev_nal_ref_idc)
+        {
             result = true;
+        }
         else if ((pic_order_cnt_type == 0 && prev_pic_order_cnt_type == 0) &&
                  (pic_order_cnt_lsb != prev_pic_order_cnt_lsb ||
                   delta_pic_order_cnt_bottom !=
                   prev_delta_pic_order_cnt_bottom))
+        {
             result = true;
+            std::cout << "pic_order_cnt_lsb != prev_pic_order_cnt_lsb\n";
+        }
         else if ((pic_order_cnt_type == 1 && prev_pic_order_cnt_type == 1) &&
                  (delta_pic_order_cnt[0] != prev_delta_pic_order_cnt[0] ||
                   delta_pic_order_cnt[1] != prev_delta_pic_order_cnt[1]))
+        {
             result = true;
+            std::cout << "delta_pic_order_cnt[0] != prev_delta_pic_order_cnt[0]\n";
+        }
         else if ((nal_unit_type == SLICE_IDR ||
                   prev_nal_unit_type == SLICE_IDR) &&
                  nal_unit_type != prev_nal_unit_type)
+        {
             result = true;
+            std::cout << "nal_unit_type != prev_nal_unit_type\n";
+        }
         else if ((nal_unit_type == SLICE_IDR &&
                   prev_nal_unit_type == SLICE_IDR) &&
                  idr_pic_id != prev_idr_pic_id)
+        {
             result = true;
+            std::cout << "idr_pic_id != prev_idr_pic_id\n";
+        }
     }
 
     prev_frame_num = frame_num;
@@ -345,6 +374,47 @@ void H264Parser::fillRBSP(const uint8_t *byteP, uint32_t byte_count, bool found_
         rbsp_buffer[rbsp_index + i] = 0;
 }
 
+std::string H264Parser::NALunitType_str(uint8_t nal_unit_type)
+{
+    switch (nal_unit_type)
+    {
+      case UNKNOWN:
+        return "UNKNOWN";
+      case SLICE:
+        return "SLICE";
+      case SLICE_DPA:
+        return "SLICE_DPA";
+      case SLICE_DPB:
+        return "SLICE_DPB";
+      case SLICE_DPC:
+        return "SLICE_DPC";
+      case SLICE_IDR:
+        return "SLICE_IDR";
+      case SEI:
+        return "SEI";
+      case SPS:
+        return "SPS";
+      case PPS:
+        return "PPS";
+      case AU_DELIMITER:
+        return "AU_DELIMITER";
+      case END_SEQUENCE:
+        return "END_SEQUENCE";
+      case END_STREAM:
+        return "END_STREAM";
+      case FILLER_DATA:
+        return "FILLER_DATA";
+      case SPS_EXT:
+        return "SPS_EXT";
+      case AUXILIARY_SLICE:
+        return "AUXILIARY_SLICE";
+      default:
+        std::ostringstream os;
+        os << "INVALID (" << (int)nal_unit_type << ")";
+        return os.str();
+    }
+}
+
 uint32_t H264Parser::addBytes(const uint8_t  *bytes,
                               const uint32_t  byte_count,
                               const uint64_t  stream_offset)
@@ -385,6 +455,7 @@ uint32_t H264Parser::addBytes(const uint8_t  *bytes,
                  * parsing the previous NAL. Either there's a
                  * problem with the stream or with this parser.
                  * VERBOSE */
+                std::cout << "Insufficient bytes of packet to decode\n";
             }
 
             /* Prepare for accepting the new NAL */
@@ -418,6 +489,8 @@ uint32_t H264Parser::addBytes(const uint8_t  *bytes,
             nal_unit_type = sync_accumulator & 0x1f;
             nal_ref_idc = (sync_accumulator >> 5) & 0x3;
 
+            std::cout << "  " << NALunitType_str(nal_unit_type) << std::endl;
+
             if (nal_unit_type == SPS || nal_unit_type == PPS ||
                 nal_unit_type == SEI || NALisSlice(nal_unit_type))
             {
@@ -433,6 +506,19 @@ uint32_t H264Parser::addBytes(const uint8_t  *bytes,
                      nal_unit_type < AUXILIARY_SLICE))
             {
                 set_AU_pending();
+
+                if (AU_pending)
+                    std::cout << "    AU_pending\n";
+
+                std::cout << "        AU_pending = " << AU_pending
+                          << " NALisSlice = " << NALisSlice(nal_unit_type)
+                          << "\n";
+            }
+            else
+            {
+                std::cout << "        AU_pending = " << AU_pending
+                          << " NALisSlice = " << NALisSlice(nal_unit_type)
+                          << "\n";
             }
         }
     }
@@ -500,6 +586,7 @@ void H264Parser::processRBSP(bool rbsp_complete)
     {
         /* Once we know the slice type of a new AU, we can
          * determine if it is a keyframe or just a frame */
+        std::cout << "    *** Field ***\n";
 
         AU_pending = false;
         state_changed = true;
@@ -512,6 +599,12 @@ void H264Parser::processRBSP(bool rbsp_complete)
             on_key_frame = true;
             keyframe_start_offset = AU_offset;
         }
+    }
+    else
+    {
+        std::cout << "        AU_pending = " << AU_pending
+                  << " NALisSlice = " << NALisSlice(nal_unit_type)
+                  << "\n";
     }
 }
 
@@ -527,6 +620,7 @@ bool H264Parser::decode_Header(GetBitContext *gb)
     if (log2_max_frame_num == 0 || pic_order_present_flag == -1)
     {
         // SPS or PPS has not been parsed yet VERBOSE */
+        std::cout << "        SPS or PPS has not been parsed yet\n";
         return false;
     }
 
@@ -590,6 +684,7 @@ bool H264Parser::decode_Header(GetBitContext *gb)
     */
 
     frame_num = get_bits(gb, log2_max_frame_num);
+    std::cout << (int)frame_num << " ";
 
     /*
       field_pic_flag equal to 1 specifies that the slice is a slice of a
@@ -627,10 +722,15 @@ bool H264Parser::decode_Header(GetBitContext *gb)
     if (nal_unit_type == SLICE_IDR)
     {
         idr_pic_id = get_ue_golomb(gb);
+        std::cout << "    idr_pic_id = " << (int)idr_pic_id << "\n";
         is_keyframe = true;
     }
     else
+    {
         is_keyframe |= I_is_keyframe && isKeySlice(slice_type);
+        std::cout << "    slice_type = " << (int)slice_type << "\n";
+    }
+
     /*
       pic_order_cnt_lsb specifies the picture order count modulo
       MaxPicOrderCntLsb for the top field of a coded frame or for a coded
@@ -750,6 +850,7 @@ void H264Parser::decode_SPS(GetBitContext * gb)
        MaxFrameNum = 2( log2_max_frame_num_minus4 + 4 )
      */
     log2_max_frame_num = get_ue_golomb(gb) + 4;
+    std::cout << "        log2_max_frame_num = " << log2_max_frame_num << "\n";
 
     int  offset_for_non_ref_pic;
     int  offset_for_top_to_bottom_field;
