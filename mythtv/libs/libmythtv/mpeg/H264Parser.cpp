@@ -1,5 +1,6 @@
 // MythTV headers
 #include "H264Parser.h"
+#include <iostream>
 
 extern "C" {
 // from libavcodec
@@ -92,8 +93,11 @@ static const float eps = 1E-5;
 
 H264Parser::H264Parser(void)
 {
-    rbsp_buffer      = NULL;
-    rbsp_buffer_size = 0;
+    rbsp_buffer_size = 188 * 2;
+    rbsp_buffer = new uint8_t[rbsp_buffer_size];
+    if (rbsp_buffer == 0)
+        rbsp_buffer_size = 0;
+
     Reset();
     I_is_keyframe = true;
 }
@@ -277,23 +281,30 @@ void H264Parser::resetRBSP(void)
     have_unfinished_NAL = false;
 }
 
-void H264Parser::fillRBSP(const uint8_t *byteP, uint32_t byte_count, bool found_start_code)
+bool H264Parser::fillRBSP(const uint8_t *byteP, uint32_t byte_count,
+                          bool found_start_code)
 {
     /*
       bitstream buffer, must be FF_INPUT_BUFFER_PADDING_SIZE
       bytes larger then the actual data
     */
-    uint32_t required_size = rbsp_index + byte_count + FF_INPUT_BUFFER_PADDING_SIZE;
-    if(rbsp_buffer_size < required_size)
+    uint32_t required_size = rbsp_index + byte_count +
+                             FF_INPUT_BUFFER_PADDING_SIZE;
+    if (rbsp_buffer_size < required_size)
     {
+        // Round up to packet size
+        required_size = ((required_size / 188) + 1) * 188;
+
         /* Need a bigger buffer */
         uint8_t *new_buffer = new uint8_t[required_size];
 
-        if(new_buffer == NULL)
+        if (new_buffer == NULL)
         {
             /* Allocation failed. Discard the new bytes and allow parsing of
-             * the current NAL to fail VERBOSE */
-            return;
+             * the current NAL to fail*/
+            std::cerr << "H264Parser::fillRBSP: "
+                      << "FAILED to allocate RBSP buffer!\n";
+            return false;
         }
 
         /* Copy across bytes from old buffer */
@@ -305,44 +316,46 @@ void H264Parser::fillRBSP(const uint8_t *byteP, uint32_t byte_count, bool found_
     }
 
     /* Fill rbsp while we have data */
-    while(byte_count)
+    while (byte_count)
     {
         /* Copy the byte into the rbsp, unless it
          * is the 0x03 in a 0x000003 */
-        if(consecutive_zeros < 2 || *byteP != 0x03)
+        if (consecutive_zeros < 2 || *byteP != 0x03)
             rbsp_buffer[rbsp_index++] = *byteP;
 
-        if(*byteP == 0)
-            consecutive_zeros += 1;
+        if (*byteP == 0)
+            ++consecutive_zeros;
         else
             consecutive_zeros = 0;
 
-        byteP += 1;
-        byte_count -= 1;
+        ++byteP;
+        --byte_count;
     }
 
     /* If we've found the next start code then that, plus the first byte of
      * the next NAL, plus the preceding zero bytes will all be in the rbsp
      * buffer. Move rbsp_index++ back to the end of the actual rbsp data. We
      * need to know the correct size of the rbsp to decode some NALs. */
-    if(found_start_code)
+    if (found_start_code)
     {
-        if(rbsp_index >= 4)
+        if (rbsp_index >= 4)
         {
             rbsp_index -= 4;
-            while(rbsp_index > 0 && rbsp_buffer[rbsp_index-1] == 0)
-                rbsp_index -= 1;
+            while (rbsp_index > 0 && rbsp_buffer[rbsp_index-1] == 0)
+                --rbsp_index;
         }
         else
         {
-            /* This should never happen.
-             * VERBOSE */
+            /* This should never happen. */
+            std::cerr << "H264Parser::fillRBSP: "
+                      << "Found start code, rbsp_index is "
+                      << rbsp_index << " but it should be >4\n";
         }
     }
 
-    /* Stick some zeros on the end for get_bits to run into */
-    for(uint32_t i = 0; i < FF_INPUT_BUFFER_PADDING_SIZE; i++)
-        rbsp_buffer[rbsp_index + i] = 0;
+    /* Stick some 0xff on the end for get_bits to run into */
+    memset(&rbsp_buffer[rbsp_index], 0xff, FF_INPUT_BUFFER_PADDING_SIZE);
+    return true;
 }
 
 uint32_t H264Parser::addBytes(const uint8_t  *bytes,
@@ -360,16 +373,18 @@ uint32_t H264Parser::addBytes(const uint8_t  *bytes,
         const uint8_t *endP;
         bool           found_start_code;
 
-        endP = ff_find_start_code(startP, bytes + byte_count, &sync_accumulator);
+        endP = ff_find_start_code(startP,
+                                  bytes + byte_count, &sync_accumulator);
 
         found_start_code = ((sync_accumulator & 0xffffff00) == 0x00000100);
 
         /* Between startP and endP we potentially have some more
          * bytes of a NAL that we've been parsing (plus some bytes of
          * start code) */
-        if(have_unfinished_NAL)
+        if (have_unfinished_NAL)
         {
-            fillRBSP(startP, endP - startP, found_start_code);
+            if (!fillRBSP(startP, endP - startP, found_start_code))
+                return 0;
             processRBSP(found_start_code); /* Call may set have_uinfinished_NAL
                                             * to false */
         }
@@ -379,12 +394,14 @@ uint32_t H264Parser::addBytes(const uint8_t  *bytes,
 
         if (found_start_code)
         {
-            if(have_unfinished_NAL)
+            if (have_unfinished_NAL)
             {
                 /* We've found a new start code, without completely
                  * parsing the previous NAL. Either there's a
                  * problem with the stream or with this parser.
-                 * VERBOSE */
+                 */
+                std::cerr << "H264Parser::addBytes: Found new start code, "
+                          << "but previous NAL is incomplete!\n";
             }
 
             /* Prepare for accepting the new NAL */
@@ -452,7 +469,7 @@ void H264Parser::processRBSP(bool rbsp_complete)
         /* SEI cannot be parsed without knowing its size. If
          * we haven't got the whole rbsp, return and wait for
          * the rest */
-        if(!rbsp_complete)
+        if (!rbsp_complete)
             return;
 
         set_AU_pending();
@@ -462,7 +479,7 @@ void H264Parser::processRBSP(bool rbsp_complete)
     else if (nal_unit_type == SPS)
     {
         /* Best wait until we have the whole thing */
-        if(!rbsp_complete)
+        if (!rbsp_complete)
             return;
 
         set_AU_pending();
@@ -472,7 +489,7 @@ void H264Parser::processRBSP(bool rbsp_complete)
     else if (nal_unit_type == PPS)
     {
         /* Best wait until we have the whole thing */
-        if(!rbsp_complete)
+        if (!rbsp_complete)
             return;
 
         set_AU_pending();
@@ -483,7 +500,7 @@ void H264Parser::processRBSP(bool rbsp_complete)
     {
         /* Need only parse the header. So return only
          * if we have insufficient bytes */
-        if(!rbsp_complete && rbsp_index < MAX_SLICE_HEADER_SIZE)
+        if (!rbsp_complete && rbsp_index < MAX_SLICE_HEADER_SIZE)
             return;
 
         decode_Header(&gb);
@@ -526,7 +543,9 @@ bool H264Parser::decode_Header(GetBitContext *gb)
 
     if (log2_max_frame_num == 0 || pic_order_present_flag == -1)
     {
-        // SPS or PPS has not been parsed yet VERBOSE */
+        /* SPS or PPS has not been parsed yet */
+        std::cerr << "H264Parser::decode_Header: "
+                  << "Cannot decode header until a SPS or PPS has been seen.\n";
         return false;
     }
 
@@ -730,7 +749,7 @@ void H264Parser::decode_SPS(GetBitContext * gb)
         {
             for (int idx = 0; idx < ((chroma_format_idc != 3) ? 8 : 12); ++idx)
             {
-                if(get_bits1(gb)) // Scaling list presnent
+                if (get_bits1(gb)) // Scaling list presnent
                 {
                     int sl_n = ((idx < 6) ? 16 : 64);
                     for(int sl_i = 0; sl_i < sl_n; sl_i++)
@@ -978,7 +997,7 @@ void H264Parser::decode_SEI(GetBitContext *gb)
     /* A message requires at least 2 bytes, and then
      * there's the stop bit plus alignment, so there
      * can be no message in less than 24 bits */
-    while(get_bits_left(gb) >= 24)
+    while (get_bits_left(gb) >= 24)
     {
         do {
             type += show_bits(gb, 8);
