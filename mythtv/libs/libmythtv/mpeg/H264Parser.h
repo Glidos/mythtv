@@ -23,6 +23,7 @@
 #ifndef H264PARSER_H
 #define H264PARSER_H
 
+#include <QString>
 #include <stdint.h>
 #include "mythconfig.h"
 #include "compat.h" // for uint on Darwin, MinGW
@@ -111,6 +112,8 @@ class H264Parser {
                       const uint32_t  byte_count,
                       const uint64_t  stream_offset);
     void Reset(void);
+
+    QString NAL_type_str(uint8_t type);
 
     bool stateChanged(void) const { return state_changed; }
 

@@ -154,6 +154,42 @@ void H264Parser::Reset(void)
 }
 
 
+QString H264Parser::NAL_type_str(uint8_t type)
+{
+    switch (type)
+    {
+      case UNKNOWN:
+        return "UNKNOWN";
+      case SLICE:
+        return "SLICE";
+      case SLICE_DPA:
+        return "SLICE_DPA";
+      case SLICE_DPB:
+        return "SLICE_DPB";
+      case SLICE_DPC:
+        return "SLICE_DPC";
+      case SLICE_IDR:
+        return "SLICE_IDR";
+      case SEI:
+        return "SEI";
+      case SPS:
+        return "SPS";
+      case PPS:
+        return "PPS";
+      case AU_DELIMITER:
+        return "AU_DELIMITER";
+      case END_SEQUENCE:
+        return "END_SEQUENCE";
+      case END_STREAM:
+        return "END_STREAM";
+      case FILLER_DATA:
+        return "FILLER_DATA";
+      case SPS_EXT:
+        return "SPS_EXT";
+    }
+    return "OTHER";
+}
+
 bool H264Parser::new_AU(void)
 {
     /*
@@ -300,8 +336,7 @@ bool H264Parser::fillRBSP(const uint8_t *byteP, uint32_t byte_count,
 
         if (new_buffer == NULL)
         {
-            /* Allocation failed. Discard the new bytes and allow parsing of
-             * the current NAL to fail*/
+            /* Allocation failed. Discard the new bytes */
             std::cerr << "H264Parser::fillRBSP: "
                       << "FAILED to allocate RBSP buffer!\n";
             return false;
@@ -309,7 +344,6 @@ bool H264Parser::fillRBSP(const uint8_t *byteP, uint32_t byte_count,
 
         /* Copy across bytes from old buffer */
         memcpy(new_buffer, rbsp_buffer, rbsp_index);
-
         delete [] rbsp_buffer;
         rbsp_buffer = new_buffer;
         rbsp_buffer_size = required_size;
@@ -363,6 +397,8 @@ uint32_t H264Parser::addBytes(const uint8_t  *bytes,
                               const uint64_t  stream_offset)
 {
     const uint8_t *startP = bytes;
+    const uint8_t *endP;
+    bool           found_start_code;
 
     state_changed = false;
     on_frame      = false;
@@ -370,9 +406,6 @@ uint32_t H264Parser::addBytes(const uint8_t  *bytes,
 
     while (startP < bytes + byte_count && !on_frame)
     {
-        const uint8_t *endP;
-        bool           found_start_code;
-
         endP = ff_find_start_code(startP,
                                   bytes + byte_count, &sync_accumulator);
 
@@ -384,7 +417,10 @@ uint32_t H264Parser::addBytes(const uint8_t  *bytes,
         if (have_unfinished_NAL)
         {
             if (!fillRBSP(startP, endP - startP, found_start_code))
-                return 0;
+            {
+                resetRBSP();
+                return endP - bytes;
+            }
             processRBSP(found_start_code); /* Call may set have_uinfinished_NAL
                                             * to false */
         }
@@ -411,7 +447,7 @@ uint32_t H264Parser::addBytes(const uint8_t  *bytes,
              * to the next start code, the offset to associate with
              * it is the one passed in to this call, not any of the
              * subsequent calls. */
-            pkt_offset = stream_offset;
+            pkt_offset = stream_offset; // + (startP - bytes);
 /*
   nal_unit_type specifies the type of RBSP data structure contained in
   the NAL unit as specified in Table 7-1. VCL NAL units
@@ -544,8 +580,6 @@ bool H264Parser::decode_Header(GetBitContext *gb)
     if (log2_max_frame_num == 0 || pic_order_present_flag == -1)
     {
         /* SPS or PPS has not been parsed yet */
-        std::cerr << "H264Parser::decode_Header: "
-                  << "Cannot decode header until a SPS or PPS has been seen.\n";
         return false;
     }
 
@@ -1014,7 +1048,7 @@ void H264Parser::decode_SEI(GetBitContext *gb)
                 exact_match_flag = get_bits1(gb);
                 broken_link_flag = get_bits1(gb);
                 changing_group_slice_idc = get_bits(gb, 2);
-                au_contains_keyframe_message = (recovery_frame_cnt >= 0);
+                au_contains_keyframe_message = (recovery_frame_cnt == 0);
                 return;
 
             default:
