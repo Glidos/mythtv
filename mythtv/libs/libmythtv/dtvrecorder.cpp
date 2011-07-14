@@ -519,6 +519,13 @@ bool DTVRecorder::FindH264Keyframes(const TSPacket *tspacket)
     bool hasFrame = false;
     bool hasKeyFrame = false;
 
+    if(tspacket->RandomAccessIndicator())
+    {
+        VERBOSE(VB_IMPORTANT, LOC_ERR
+                + QString("Random access point at %1 frames %2").arg(ringBuffer->GetWritePosition() + _payload_buffer.size())
+                                                                .arg(_frames_written_count));
+    }
+
     // scan for PES packets and H.264 NAL units
     uint i = tspacket->AFCOffset();
     for (; i < TSPacket::SIZE; i++)
@@ -603,6 +610,28 @@ bool DTVRecorder::FindH264Keyframes(const TSPacket *tspacket)
                 aspectRatio = m_h264_parser.aspectRatio();
                 frameRate = m_h264_parser.frameRate();
             }
+
+            if (m_h264_parser.RecoveryFrameCount() != -1)
+            {
+                VERBOSE(VB_IMPORTANT, LOC_ERR
+                + QString("Recovery frame count = %1 at %2")
+                   .arg(m_h264_parser.RecoveryFrameCount())
+                   .arg(_frames_written_count));
+            }
+
+            if (m_h264_parser.MemoryManagementPresent())
+            {
+                VERBOSE(VB_IMPORTANT, LOC_ERR
+                + QString("Memory manangement present at %1")
+                   .arg(_frames_written_count));
+            }
+
+            if (m_h264_parser.NoReferencePictures())
+            {
+                VERBOSE(VB_IMPORTANT, LOC_ERR
+                + QString("No reference pictures at %1")
+                   .arg(_frames_written_count));
+            }
         }
     } // for (; i < TSPacket::SIZE; i++)
 
@@ -660,6 +689,8 @@ void DTVRecorder::HandleH264Keyframe(void)
     positionMapLock.lock();
     if (!positionMap.contains(frameNum))
     {
+        VERBOSE(VB_IMPORTANT, LOC_ERR
+                + QString("Frame %1 is an iframe at %2").arg(frameNum).arg(m_h264_parser.keyframeAUstreamOffset()));
         positionMapDelta[frameNum] = m_h264_parser.keyframeAUstreamOffset();
         positionMap[frameNum]      = m_h264_parser.keyframeAUstreamOffset();
     }

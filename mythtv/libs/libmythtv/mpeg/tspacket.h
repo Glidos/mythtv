@@ -168,6 +168,12 @@ class TSPacket : public TSHeader
         return HasAdaptationField() ? _tspayload[0]+1+4 : 4;
     }
 
+    bool RandomAccessIndicator() const {
+        return (HasAdaptationField() && _tspayload[0] > 0)
+                       ? ((_tspayload[1] & 0x40) != 0)
+                       : false;
+    }
+
     //4.0  8 bits, iff payloadStart(), points to start of field
     unsigned int StartOfFieldPointer() const { return data()[AFCOffset()]; }
     void SetStartOfFieldPointer(uint sof) { data()[AFCOffset()] = sof; }
