@@ -180,6 +180,7 @@ class H264Parser {
                 AU_pending = true;
                 AU_offset = pkt_offset;
                 recovery_frame_cnt    = -1;
+                slice_report = "Slices: ";
             }
         }
 
@@ -253,6 +254,7 @@ class H264Parser {
     uint64_t   pkt_offset, AU_offset, frame_start_offset, keyframe_start_offset;
     bool       on_frame, on_key_frame;
     QString    report;
+    QString    slice_report;
 };
 
 #endif /* H264PARSER_H */

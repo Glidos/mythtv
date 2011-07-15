@@ -339,6 +339,7 @@ bool H264Parser::fillRBSP(const uint8_t *byteP, uint32_t byte_count,
             /* Allocation failed. Discard the new bytes */
             std::cerr << "H264Parser::fillRBSP: "
                       << "FAILED to allocate RBSP buffer!\n";
+            report += "H264Parser::fillRBSP: FAILED to allocate RBSP buffer!\n";
             return false;
         }
 
@@ -384,6 +385,7 @@ bool H264Parser::fillRBSP(const uint8_t *byteP, uint32_t byte_count,
             std::cerr << "H264Parser::fillRBSP: "
                       << "Found start code, rbsp_index is "
                       << rbsp_index << " but it should be >4\n";
+            report += QString("H264Parser::fillRBSP: Found start code, rbsp_index is %1 but it should be >4\n").arg(rbsp_index);
         }
     }
 
@@ -440,6 +442,7 @@ uint32_t H264Parser::addBytes(const uint8_t  *bytes,
                  */
                 std::cerr << "H264Parser::addBytes: Found new start code, "
                           << "but previous NAL is incomplete!\n";
+                report += "H264Parser::addBytes: Found new start code, but previous NAL is incomplete!\n";
             }
 
             /* Prepare for accepting the new NAL */
@@ -555,6 +558,7 @@ void H264Parser::processRBSP(bool rbsp_complete)
     {
         /* Once we know the slice type of a new AU, we can
          * determine if it is a keyframe or just a frame */
+        report += slice_report;
 
         AU_pending = false;
         state_changed = true;
@@ -612,7 +616,9 @@ bool H264Parser::decode_Header(GetBitContext *gb)
       When nal_unit_type is equal to 5 (IDR picture), slice_type shall
       be equal to 2, 4, 7, or 9 (I or SI)
      */
-    slice_type = get_ue_golomb(gb)%5;
+    slice_type = get_ue_golomb(gb);
+    slice_report += QString(" %1").arg(slice_type);
+    slice_type = slice_type%5;
 
     /*
       pic_parameter_set_id specifies the picture parameter set in
@@ -900,7 +906,7 @@ bool H264Parser::decode_Header(GetBitContext *gb)
                    }
                 } while (memory_management_control_operation != 0);
 
-                if (report.size() < 300)
+                if (false && report.size() < 300)
                     report += memreport + "\n";
             }
         }

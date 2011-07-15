@@ -619,11 +619,8 @@ bool DTVRecorder::FindH264Keyframes(const TSPacket *tspacket)
                    .arg(_frames_written_count));
             }
 
-            if (m_h264_parser.MemoryManagementPresent())
-            {
-                VERBOSE(VB_IMPORTANT, LOC_ERR
-                 + QString("At frame %1 ").arg(_frames_written_count)+ m_h264_parser.GetReport());
-            }
+            VERBOSE(VB_IMPORTANT, LOC_ERR
+             + QString("At frame %1 ").arg(_frames_written_count)+ m_h264_parser.GetReport());
 
             if (m_h264_parser.NoReferencePictures())
             {
