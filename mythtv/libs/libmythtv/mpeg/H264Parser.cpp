@@ -400,9 +400,11 @@ uint32_t H264Parser::addBytes(const uint8_t  *bytes,
     const uint8_t *endP;
     bool           found_start_code;
 
-    state_changed = false;
-    on_frame      = false;
-    on_key_frame  = false;
+    state_changed         = false;
+    on_frame              = false;
+    on_key_frame          = false;
+    no_reference_pictures = false;
+    memory_management_present = false;
 
     while (startP < bytes + byte_count && !on_frame)
     {
@@ -560,7 +562,7 @@ void H264Parser::processRBSP(bool rbsp_complete)
         on_frame = true;
         frame_start_offset = AU_offset;
 
-        if (is_keyframe || au_contains_keyframe_message)
+        if (is_keyframe || recovery_frame_cnt == 0)
         {
             on_key_frame = true;
             keyframe_start_offset = AU_offset;
@@ -574,6 +576,7 @@ void H264Parser::processRBSP(bool rbsp_complete)
 bool H264Parser::decode_Header(GetBitContext *gb)
 {
     uint first_mb_in_slice;
+    int  ChromaArrayType;
 
     is_keyframe = false;
 
@@ -609,7 +612,7 @@ bool H264Parser::decode_Header(GetBitContext *gb)
       When nal_unit_type is equal to 5 (IDR picture), slice_type shall
       be equal to 2, 4, 7, or 9 (I or SI)
      */
-    slice_type = get_ue_golomb(gb);
+    slice_type = get_ue_golomb(gb)%5;
 
     /*
       pic_parameter_set_id specifies the picture parameter set in
@@ -631,8 +634,12 @@ bool H264Parser::decode_Header(GetBitContext *gb)
       case, each colour plane is associated with a specific
       colour_plane_id value.
      */
+    ChromaArrayType = chroma_format_idc;
     if (separate_colour_plane_flag)
+    {
+        ChromaArrayType = 0;
         get_bits(gb, 2);  // colour_plane_id
+    }
 
     /*
       frame_num is used as an identifier for pictures and shall be
@@ -696,17 +703,14 @@ bool H264Parser::decode_Header(GetBitContext *gb)
       difference between the bottom field and the top field of a coded
       frame.
     */
+    delta_pic_order_cnt_bottom = 0;
     if (pic_order_cnt_type == 0)
     {
         pic_order_cnt_lsb = get_bits(gb, log2_max_pic_order_cnt_lsb);
 
         if (pic_order_present_flag && !field_pic_flag)
             delta_pic_order_cnt_bottom = get_se_golomb(gb);
-        else
-            delta_pic_order_cnt_bottom = 0;
     }
-    else
-        delta_pic_order_cnt_bottom = 0;
 
     /*
       delta_pic_order_cnt[ 0 ] specifies the picture order count
@@ -725,17 +729,15 @@ bool H264Parser::decode_Header(GetBitContext *gb)
       bitstream for the current slice, it shall be inferred to be
       equal to 0.
      */
+    delta_pic_order_cnt[0] = 0;
+    delta_pic_order_cnt[1] = 0;
     if (pic_order_cnt_type == 1 && !delta_pic_order_always_zero_flag)
     {
         delta_pic_order_cnt[0] = get_se_golomb(gb);
 
         if (pic_order_present_flag && !field_pic_flag)
             delta_pic_order_cnt[1] = get_se_golomb(gb);
-        else
-            delta_pic_order_cnt[1] = 0;
     }
-    else
-        delta_pic_order_cnt[0] = 0;
 
     /*
       redundant_pic_cnt shall be equal to 0 for slices and slice data
@@ -749,6 +751,153 @@ bool H264Parser::decode_Header(GetBitContext *gb)
 
     redundant_pic_cnt = redundant_pic_cnt_present_flag ? get_ue_golomb(gb) : 0;
 
+    if (nal_unit_type != SLICE_IDR)
+    {
+        uint8_t num_ref_idx_l0_active = num_ref_idx_l0_default_active;
+        uint8_t num_ref_idx_l1_active = num_ref_idx_l1_default_active;
+
+        if (slice_type == SLICE_B)
+            get_bits1(gb); // direct_spacial_mv_pred_flag
+
+        if (slice_type == SLICE_P || slice_type == SLICE_SP || slice_type == SLICE_B)
+        {
+            if (get_bits1(gb)) // num_ref_idx_active_override_flag
+            {
+                num_ref_idx_l0_active= get_ue_golomb(gb) + 1;
+
+                if (slice_type == SLICE_B)
+                    num_ref_idx_l1_active= get_ue_golomb(gb) + 1;
+            }
+        }
+
+        /* nal_unit_type not 20, so ref_pic_list_modification() is present */
+        if (slice_type%5 != 2 && slice_type%5 != 4)
+        {
+            if (get_bits1(gb)) // ref_pic_list_modification_flag_l0
+            {
+                uint8_t modification_of_pic_nums_idc;
+
+                do
+                {
+                    modification_of_pic_nums_idc = get_ue_golomb(gb);
+
+                    switch (modification_of_pic_nums_idc)
+                    {
+                        case 0:
+                        case 1:
+                        case 2:
+                            get_ue_golomb(gb); // abs_diff_pic_num_minus1 or long_term_pic_num
+                    }
+                } while (modification_of_pic_nums_idc != 3);
+            }
+        }
+
+        if (slice_type%5 == 1)
+        {
+            if (get_bits1(gb)) // ref_pic_list_modification_flag_l1
+            {
+                uint8_t modification_of_pic_nums_idc;
+
+                do
+                {
+                    modification_of_pic_nums_idc = get_ue_golomb(gb);
+
+                    switch (modification_of_pic_nums_idc)
+                    {
+                        case 0:
+                        case 1:
+                        case 2:
+                            get_ue_golomb(gb); // abs_diff_pic_num_minus1 or long_term_pic_num
+                    }
+                } while (modification_of_pic_nums_idc != 3);
+            }
+        }
+
+        if ((weighted_pred_flag && (slice_type == SLICE_P || slice_type == SLICE_SP)) ||
+                (weighted_bipred_idc == 1 && slice_type == SLICE_B))
+        {
+            int i;
+
+            /* pred_weight_table() */
+            get_ue_golomb(gb); // luma_log2_weight_denom
+
+            if (ChromaArrayType != 0)
+                get_ue_golomb(gb); // chroma_log2_weight_denom
+
+            for (i = 0; i < num_ref_idx_l0_active; i++)
+            {
+                if (get_bits1(gb)) // luma_weight_l0_flag
+                {
+                    get_se_golomb(gb); // luma_weight_l0[i]
+                    get_se_golomb(gb); // luma_offset_l0[i]
+                }
+
+                if (ChromaArrayType != 0)
+                {
+                    if (get_bits1(gb)) // chroma_weight_l0_flag
+                    {
+                        get_se_golomb(gb); // chroma_weight_l0[i][0]
+                        get_se_golomb(gb); // chroma_offset_l0[i][0]
+                        get_se_golomb(gb); // chroma_weight_l0[i][1]
+                        get_se_golomb(gb); // chroma_offset_l0[i][1]
+                    }
+                }
+            }
+
+            if (slice_type%5 == 1)
+            {
+                for (i = 0; i < num_ref_idx_l1_active; i++)
+                {
+                    if (get_bits1(gb)) // luma_weight_l1_flag
+                    {
+                        get_se_golomb(gb); // luma_weight_l1[i]
+                        get_se_golomb(gb); // luma_offset_l1[i]
+                    }
+
+                    if (ChromaArrayType != 0)
+                    {
+                        if (get_bits1(gb)) // chroma_weight_l1_flag
+                        {
+                            get_se_golomb(gb); // chroma_weight_l1[i][0]
+                            get_se_golomb(gb); // chroma_offset_l1[i][0]
+                            get_se_golomb(gb); // chroma_weight_l1[i][1]
+                            get_se_golomb(gb); // chroma_offset_l1[i][1]
+                        }
+                    }
+                }
+            }
+        }
+
+        if (nal_ref_idc != 0)
+        {
+            /* def_ref_pic_marking() */
+            if (get_bits1(gb)) // adaptive_ref_pic_marking_mode_flag
+            {
+                uint8_t memory_management_control_operation;
+
+                memory_management_present = true;
+
+                do
+                {
+                   memory_management_control_operation = get_ue_golomb(gb);
+                   switch (memory_management_control_operation)
+                   {
+                       case 1:
+                       case 2:
+                       case 3:
+                       case 4:
+                       case 6:
+                           get_ue_golomb(gb);
+                           break;
+                       case 5:
+                           no_reference_pictures = true;
+                           break;
+                   }
+                } while (memory_management_control_operation != 0);
+            }
+        }
+    }
+
     return true;
 }
 
@@ -757,7 +906,7 @@ bool H264Parser::decode_Header(GetBitContext *gb)
  */
 void H264Parser::decode_SPS(GetBitContext * gb)
 {
-    int profile_idc, chroma_format_idc;
+    int profile_idc;
 
     seen_sps = true;
 
@@ -770,6 +919,8 @@ void H264Parser::decode_SPS(GetBitContext * gb)
     get_bits(gb, 8);    // level_idc
     get_ue_golomb(gb);  // sps_id
 
+    chroma_format_idc          = 1;
+    separate_colour_plane_flag = 0;
     if (profile_idc >= 100)
     { // high profile
         if ((chroma_format_idc = get_ue_golomb(gb)) == 3) // chroma_format_idc
@@ -971,11 +1122,16 @@ void H264Parser::decode_PPS(GetBitContext * gb)
      */
     pic_order_present_flag = get_bits1(gb);
 
-#if 0 // Rest not currently needed, and requires <math.h>
     uint num_slice_groups = get_ue_golomb(gb) + 1;
     if (num_slice_groups > 1) // num_slice_groups (minus 1)
     {
         uint idx;
+        uint pic_size_in_map_units;
+        uint num_bits = 0;
+
+        /* num_bits = ceil(log2(num_slice_groups)) */
+        while ((1<<num_bits) < num_slice_groups)
+            num_bits++;
 
         switch (get_ue_golomb(gb)) // slice_group_map_type
         {
@@ -983,7 +1139,7 @@ void H264Parser::decode_PPS(GetBitContext * gb)
             for (idx = 0; idx < num_slice_groups; ++idx)
                 get_ue_golomb(gb); // run_length_minus1[idx]
             break;
-          case 1:
+          case 2:
             for (idx = 0; idx < num_slice_groups; ++idx)
             {
                 get_ue_golomb(gb); // top_left[idx]
@@ -997,8 +1153,7 @@ void H264Parser::decode_PPS(GetBitContext * gb)
             get_ue_golomb(gb); // slice_group_change_rate_minus1
             break;
           case 6:
-            uint pic_size_in_map_units = get_ue_golomb(gb) + 1;
-            uint num_bits = (int)ceil(log2(num_slice_groups));
+            pic_size_in_map_units = get_ue_golomb(gb) + 1;
             for (idx = 0; idx < pic_size_in_map_units; ++idx)
             {
                 get_bits(gb, num_bits); //slice_group_id[idx]
@@ -1006,22 +1161,20 @@ void H264Parser::decode_PPS(GetBitContext * gb)
         }
     }
 
-    get_ue_golomb(gb); // num_ref_idx_10_active_minus1
-    get_ue_golomb(gb); // num_ref_idx_11_active_minus1
-    get_bits1(gb);     // weighted_pred_flag;
-    get_bits(gb, 2);   // weighted_bipred_idc
+    num_ref_idx_l0_default_active = get_ue_golomb(gb) + 1;
+    num_ref_idx_l1_default_active = get_ue_golomb(gb) + 1;
+    weighted_pred_flag            = get_bits1(gb);
+    weighted_bipred_idc           = get_bits(gb, 2);
     get_se_golomb(gb); // pic_init_qp_minus26
     get_se_golomb(gb); // pic_init_qs_minus26
     get_se_golomb(gb); // chroma_qp_index_offset
     get_bits1(gb);     // deblocking_filter_control_present_flag
     get_bits1(gb);     // constrained_intra_pref_flag
     redundant_pic_cnt_present_flag = get_bits1(gb);
-#endif
 }
 
 void H264Parser::decode_SEI(GetBitContext *gb)
 {
-    int   recovery_frame_cnt = -1;
     bool  exact_match_flag = false;
     bool  broken_link_flag = false;
     int   changing_group_slice_idc = -1;
@@ -1048,7 +1201,6 @@ void H264Parser::decode_SEI(GetBitContext *gb)
                 exact_match_flag = get_bits1(gb);
                 broken_link_flag = get_bits1(gb);
                 changing_group_slice_idc = get_bits(gb, 2);
-                au_contains_keyframe_message = (recovery_frame_cnt == 0);
                 return;
 
             default:

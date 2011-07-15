@@ -162,6 +162,12 @@ class H264Parser {
 
     uint32_t GetUnitsInTick(void) { return( unitsInTick ); }
 
+    int RecoveryFrameCount(void) { return recovery_frame_cnt; }
+
+    bool MemoryManagementPresent(void) { return memory_management_present; }
+
+    bool NoReferencePictures(void) { return no_reference_pictures; }
+
   private:
     enum constants {EXTENDED_SAR = 255};
 
@@ -171,7 +177,7 @@ class H264Parser {
             {
                 AU_pending = true;
                 AU_offset = pkt_offset;
-                au_contains_keyframe_message = false;
+                recovery_frame_cnt    = -1;
             }
         }
 
@@ -189,9 +195,11 @@ class H264Parser {
     bool       AU_pending;
     bool       state_changed;
     bool       seen_sps;
-    bool       au_contains_keyframe_message;
     bool       is_keyframe;
     bool       I_is_keyframe;
+    int        recovery_frame_cnt;
+    bool       no_reference_pictures;
+    bool       memory_management_present;
 
     uint32_t   sync_accumulator;
     uint8_t   *rbsp_buffer;
@@ -217,10 +225,15 @@ class H264Parser {
     uint       seq_parameter_set_id;
 
     uint8_t    delta_pic_order_always_zero_flag;
+    uint8_t    chroma_format_idc;
     uint8_t    separate_colour_plane_flag;
     int8_t     frame_mbs_only_flag;
     int8_t     pic_order_present_flag;
     int8_t     redundant_pic_cnt_present_flag;
+    uint8_t    num_ref_idx_l0_default_active;
+    uint8_t    num_ref_idx_l1_default_active;
+    uint8_t    weighted_pred_flag;
+    uint8_t    weighted_bipred_idc;
 
     uint       num_ref_frames;
     uint       redundant_pic_cnt;
