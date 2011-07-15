@@ -168,6 +168,8 @@ class H264Parser {
 
     bool NoReferencePictures(void) { return no_reference_pictures; }
 
+    QString GetReport(void) {QString tmp = report; report.clear(); return tmp; }
+
   private:
     enum constants {EXTENDED_SAR = 255};
 
@@ -250,6 +252,7 @@ class H264Parser {
 
     uint64_t   pkt_offset, AU_offset, frame_start_offset, keyframe_start_offset;
     bool       on_frame, on_key_frame;
+    QString    report;
 };
 
 #endif /* H264PARSER_H */

@@ -874,12 +874,17 @@ bool H264Parser::decode_Header(GetBitContext *gb)
             if (get_bits1(gb)) // adaptive_ref_pic_marking_mode_flag
             {
                 uint8_t memory_management_control_operation;
+                QString memreport = "MemMan:";
 
                 memory_management_present = true;
 
                 do
                 {
                    memory_management_control_operation = get_ue_golomb(gb);
+
+                   if (memory_management_control_operation != 0 && memreport.size() < 60)
+                       memreport += QString(" %1").arg(memory_management_control_operation);
+
                    switch (memory_management_control_operation)
                    {
                        case 1:
@@ -894,6 +899,9 @@ bool H264Parser::decode_Header(GetBitContext *gb)
                            break;
                    }
                 } while (memory_management_control_operation != 0);
+
+                if (report.size() < 300)
+                    report += memreport + "\n";
             }
         }
     }
