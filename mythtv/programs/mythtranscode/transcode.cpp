@@ -239,8 +239,9 @@ class AudioReencodeBuffer : public AudioOutput
     int audiobuffer_len, audiobuffer_frames;
     int channels, bits, bytes_per_frame, eff_audiorate;
     long long last_audiotime;
+    bool m_passthru;
 private:
-    bool                m_passthru, m_initpassthru;
+    bool m_initpassthru;
 };
 
 Transcode::Transcode(ProgramInfo *pginfo) :
@@ -760,9 +761,35 @@ int Transcode::TranscodeFile(
 
     if (!fifodir.isEmpty())
     {
+        AudioPlayer *aplayer = player->GetAudio();
         const char  *audio_codec_name;
 
-        audio_codec_name = "raw";
+        switch(aplayer->GetCodec())
+        {
+            case CODEC_ID_AC3:
+                audio_codec_name = "ac3";
+                break;
+            case CODEC_ID_EAC3:
+                audio_codec_name = "eac3";
+                break;
+            case CODEC_ID_DTS:
+                audio_codec_name = "dts";
+                break;
+            case CODEC_ID_TRUEHD:
+                audio_codec_name = "truehd";
+                break;
+            case CODEC_ID_MP3:
+                audio_codec_name = "mp3";
+                break;
+            case CODEC_ID_MP2:
+                audio_codec_name = "mp2";
+                break;
+            default:
+                audio_codec_name = "unknown";
+        }
+
+        if (!arb->m_passthru)
+            audio_codec_name = "raw";
 
         // Display details of the format of the fifo data.
         // Circumvent logging system so that output is independent
