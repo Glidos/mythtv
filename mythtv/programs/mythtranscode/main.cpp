@@ -46,7 +46,7 @@ static void usage(char *progname)
     cerr << "\t--profile        or -p: Takes a profile number or 'autodetect'\n";
     cerr << "\t                        recording profile. REQUIRED\n";
     cerr << "\t--honorcutlist   or -l: Specifies whether to use the cutlist.\n";
-    cerr << "                          Optionally takes a cutlist as an argument\n";
+    cerr << "\t                        Optionally takes a cutlist as an argument\n";
     cerr << "\t                        when used with --infile.\n";
     cerr << "\t--inversecut          : Specifies a list of frames to keep\n";
     cerr << "\t                        while cutting everything else out.\n";
@@ -57,6 +57,8 @@ static void usage(char *progname)
     cerr << "\t                        If --fifodir is specified, 'audout' and 'vidout'\n";
     cerr << "\t                        will be created in the specified directory\n";
     cerr << "\t--fifosync            : Enforce fifo sync\n";
+    cerr << "\t--cleancut            : Perform end of cuts by discarding data, so as to\n";
+    cerr << "\t                        make the cuts cleaner. Works only in fifodir mode.\n";
     cerr << "\t--passthrough         : Will pass through raw, unprocessed audio data stream\n";
     cerr << "\t--fifoinfo            : Stop after displaying the format of the fifo data\n";
     cerr << "\t--buildindex     or -b: Build a new keyframe index\n";
@@ -147,7 +149,7 @@ int main(int argc, char *argv[])
     int otype = REPLEX_MPEG2;
     bool useCutlist = false, keyframesonly = false;
     bool build_index = false, fifosync = false, showprogress = false, mpeg2 = false;
-    bool fifo_info = false;
+    bool fifo_info = false, cleanCut = false;
     QMap<QString, QString> settingsOverride;
     frm_dir_map_t deleteMap;
     frm_pos_map_t posMap;
@@ -407,6 +409,10 @@ int main(int argc, char *argv[])
         {
             fifo_info = true;
         }
+        else if (!strcmp(a.argv()[argpos],"--cleancut"))
+        {
+            cleanCut = true;
+        }
         else if (!strcmp(a.argv()[argpos],"-ro") ||
                  !strcmp(a.argv()[argpos],"--recorderOptions"))
         {
@@ -579,6 +585,16 @@ int main(int argc, char *argv[])
         cerr << "Cannot specify both --fifodir and --fifoinfo\n";
         return TRANSCODE_EXIT_INVALID_CMDLINE;
     }
+    if (cleanCut && fifodir.isEmpty() && !fifosync)
+    {
+        cerr << "Clean cutting works only in fifo mode\n";
+        return TRANSCODE_EXIT_INVALID_CMDLINE;
+    }
+    if (cleanCut && !useCutlist)
+    {
+        cerr << "--cleancut makes no sense without --honorcutlist\n";
+        return TRANSCODE_EXIT_INVALID_CMDLINE;
+    }
 
     if (fifo_info)
     {
@@ -663,7 +679,7 @@ int main(int argc, char *argv[])
         result = transcode->TranscodeFile(infile, outfile,
                                           profilename, useCutlist,
                                           (fifosync || keyframesonly), jobID,
-                                          fifodir, fifo_info, deleteMap,
+                                          fifodir, fifo_info, cleanCut, deleteMap,
                                           passthru);
         if ((result == REENCODE_OK) && (jobID >= 0))
             JobQueue::ChangeJobArgs(jobID, "RENAME_TO_NUV");

@@ -579,6 +579,7 @@ int Transcode::TranscodeFile(
     bool honorCutList, bool framecontrol,
     int jobID, QString fifodir,
     bool fifo_info,
+    bool cleanCut,
     frm_dir_map_t &deleteMap,
     bool passthru)
 {
@@ -587,7 +588,6 @@ int Transcode::TranscodeFile(
     int audioframesize;
     int audioFrame = 0;
     Cutter cutter;
-    bool cleanCut = true;
 
     if (jobID >= 0)
         JobQueue::ChangeJobComment(jobID, "0% " + QObject::tr("Completed"));
