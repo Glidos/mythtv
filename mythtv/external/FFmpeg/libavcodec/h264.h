@@ -45,6 +45,7 @@
 #define MAX_MMCO_COUNT         66
 
 #define MAX_DELAYED_PIC_COUNT  16
+#define MAX_LAST_POCS (MAX_DELAYED_PIC_COUNT+2)
 
 #define MAX_MBPAIR_SIZE (256*1024) // a tighter bound could be calculated if someone cares about a few bytes
 
@@ -489,7 +490,7 @@ typedef struct H264Context {
     Picture *long_ref[32];
     Picture default_ref_list[2][32]; ///< base reference list for all slices of a coded picture
     Picture *delayed_pic[MAX_DELAYED_PIC_COUNT + 2]; // FIXME size?
-    int last_pocs[MAX_DELAYED_PIC_COUNT];
+    int last_pocs[MAX_LAST_POCS];
     Picture *next_output_pic;
     int outputed_poc;
     int next_outputed_poc;

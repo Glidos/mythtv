@@ -1238,7 +1238,7 @@ av_cold int ff_h264_decode_init(AVCodecContext *avctx)
 
     h->thread_context[0] = h;
     h->outputed_poc      = h->next_outputed_poc = INT_MIN;
-    for (i = 0; i < MAX_DELAYED_PIC_COUNT; i++)
+    for (i = 0; i < MAX_LAST_POCS; i++)
         h->last_pocs[i] = INT_MIN;
     h->prev_poc_msb = 1 << 16;
     h->prev_frame_num = -1;
@@ -1602,7 +1602,7 @@ static void decode_postinit(H264Context *h, int setup_finished)
     }
 
     for (i = 0; 1; i++) {
-        if(i == MAX_DELAYED_PIC_COUNT || cur->poc < h->last_pocs[i]){
+        if(i == MAX_LAST_POCS || cur->poc < h->last_pocs[i]){
             if(i)
                 h->last_pocs[i-1] = cur->poc;
             break;
@@ -1610,9 +1610,19 @@ static void decode_postinit(H264Context *h, int setup_finished)
             h->last_pocs[i-1]= h->last_pocs[i];
         }
     }
-    out_of_order = MAX_DELAYED_PIC_COUNT - i;
+
+    if (i < 2 || (i < MAX_LAST_POCS && h->last_pocs[i-2] == INT_MIN)) {
+        // poc is less than any value we have recently seen
+        // Broken file. Reset last_pocs
+        for (i = 0; i < MAX_LAST_POCS; i++)
+            h->last_pocs[i] = INT_MIN;
+        h->last_pocs[MAX_LAST_POCS-1] = cur->poc;
+        i = MAX_LAST_POCS;
+    }
+
+    out_of_order = MAX_LAST_POCS - i;
     if(   cur->f.pict_type == AV_PICTURE_TYPE_B
-       || (h->last_pocs[MAX_DELAYED_PIC_COUNT-2] > INT_MIN && h->last_pocs[MAX_DELAYED_PIC_COUNT-1] - h->last_pocs[MAX_DELAYED_PIC_COUNT-2] > 2))
+       || (h->last_pocs[MAX_LAST_POCS-2] > INT_MIN && h->last_pocs[MAX_LAST_POCS-1] - h->last_pocs[MAX_LAST_POCS-2] > 2))
         out_of_order = FFMAX(out_of_order, 1);
     if(s->avctx->has_b_frames < out_of_order && !h->sps.bitstream_restriction_flag){
         av_log(s->avctx, AV_LOG_WARNING, "Increasing reorder buffer to %d\n", out_of_order);
@@ -2592,7 +2602,7 @@ static void idr(H264Context *h)
     h->prev_frame_num_offset = 0;
     h->prev_poc_msb          = 1<<16;
     h->prev_poc_lsb          = 0;
-    for (i = 0; i < MAX_DELAYED_PIC_COUNT; i++)
+    for (i = 0; i < MAX_LAST_POCS; i++)
         h->last_pocs[i] = INT_MIN;
 }
 
