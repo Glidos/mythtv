@@ -390,15 +390,12 @@ class AudioReencodeBuffer : public AudioOutput
 };
 
 // Cutter object is used in performing clean cutting. The
-// act of cutting is shared between the player and the
-// transcode loop. The player performs the initial part
-// of the cut by seeking, and the transcode loop handles
-// the remaining part by discarding data.
+// act of cutting is performed by decoding the whole video
+// and discarding the cut areas.
 class Cutter
 {
   private:
     bool          active;
-    frm_dir_map_t foreshortenedCutList;
     DeleteMap     tracker;
     int64_t       totalFrames;
     int64_t       videoFramesToCut;
@@ -416,50 +413,7 @@ class Cutter
 
     void SetCutList(frm_dir_map_t &deleteMap)
     {
-        // Break each cut into two parts, the first for
-        // the player and the second for the transcode loop.
-        frm_dir_map_t           remainingCutList;
-        frm_dir_map_t::Iterator it;
-        int64_t                 start = 0;
-        int64_t                 leadinLength;
-
-        foreshortenedCutList.clear();
-
-        for (it = deleteMap.begin(); it != deleteMap.end(); ++it)
-        {
-            switch(it.value())
-            {
-                case MARK_CUT_START:
-                    foreshortenedCutList[it.key()] = MARK_CUT_START;
-                    start = it.key();
-                    break;
-
-                case MARK_CUT_END:
-                    leadinLength = min((int64_t)(it.key() - start),
-                                       (int64_t)MAXLEADIN);
-                    if (leadinLength >= MINCUT)
-                    {
-                        foreshortenedCutList[it.key() - leadinLength + 2] =
-                            MARK_CUT_END;
-                        remainingCutList[it.key() - leadinLength + 1] =
-                            MARK_CUT_START;
-                        remainingCutList[it.key()] = MARK_CUT_END;
-                    }
-                    else
-                    {
-                        // Cut too short to use new method.
-                        foreshortenedCutList[it.key()] = MARK_CUT_END;
-                    }
-                    break;
-            }
-        }
-
-        tracker.SetMap(remainingCutList);
-    }
-
-    frm_dir_map_t AdjustedCutList() const
-    {
-        return foreshortenedCutList;
+        tracker.SetMap(deleteMap);
     }
 
     void Activate(float v2a, int64_t total)
@@ -1473,13 +1427,13 @@ int Transcode::TranscodeFile(const QString &inputname,
     {
         if (cleanCut)
         {
-            // Have the player seek only part of the way
-            // through a cut, and then use the cutter to
-            // discard the rest
+            frm_dir_map_t emptyMap;
+            // Perform cutting by discarding
             cutter = new Cutter();
             cutter->SetCutList(deleteMap);
-
-            GetPlayer()->SetCutList(cutter->AdjustedCutList());
+            // Pass the player an empty cutlist (although we haven't explicitly
+            // passed it the deleteMap, this is necessary - don't know why)
+            GetPlayer()->SetCutList(emptyMap);
         }
         else
         {
