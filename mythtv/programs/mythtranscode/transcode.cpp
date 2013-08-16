@@ -609,9 +609,9 @@ class TranscodeFrameQueue : public QRunnable
 {
   public:
     TranscodeFrameQueue(MythPlayer *player, VideoOutput *videoout,
-        bool cutlist, int size = 5)
+        int videoSize, bool cutlist, int size = 5)
       : m_player(player),         m_videoOutput(videoout),
-        m_honorCutlist(cutlist),
+        m_videoSize(videoSize),   m_honorCutlist(cutlist),
         m_eof(false),             m_maxFrames(size),
         m_runThread(true),        m_isRunning(false)
     {
@@ -625,6 +625,13 @@ class TranscodeFrameQueue : public QRunnable
 
         while (m_isRunning)
             usleep(50000);
+
+        for (int i = 0; i < m_available.size(); i++)
+        {
+            VideoFrame *frame = m_available[i];
+            delete [] frame->buf;
+            delete frame;
+        }
     }
 
     void stop(void)
@@ -653,7 +660,9 @@ class TranscodeFrameQueue : public QRunnable
                 if (m_player->TranscodeGetNextFrame(dm_iter, tfInfo.didFF,
                     tfInfo.isKey, m_honorCutlist))
                 {
-                    tfInfo.frame = m_videoOutput->GetLastDecodedFrame();
+                    VideoFrame *frame = m_videoOutput->GetLastDecodedFrame();
+                    tfInfo.frame = MakeCopy(frame);
+                    m_videoOutput->DoneDisplayingFrame(frame);
 
                     QMutexLocker locker(&m_queueLock);
                     m_frameList.append(tfInfo);
@@ -706,9 +715,43 @@ class TranscodeFrameQueue : public QRunnable
         return tfInfo.frame;
     }
 
+    VideoFrame *MakeCopy(VideoFrame *frame)
+    {
+        m_queueLock.lock();
+
+        VideoFrame *frameCopy = NULL;
+        if (m_available.isEmpty())
+        {
+            frameCopy = new VideoFrame();
+            memcpy(frameCopy, frame, sizeof(VideoFrame));
+            frameCopy->buf = new unsigned char[m_videoSize];
+        }
+        else
+        {
+            frameCopy = m_available.takeFirst();
+            unsigned char *buf = frameCopy->buf;
+            memcpy(frameCopy, frame, sizeof(VideoFrame));
+            frameCopy->buf = buf;
+        }
+
+        memcpy(frameCopy->buf, frame->buf, m_videoSize);
+
+        m_queueLock.unlock();
+
+        return frameCopy;
+    }
+
+    void Reuse(VideoFrame *frame)
+    {
+        m_queueLock.lock();
+        m_available.append(frame);
+        m_queueLock.unlock();
+    }
+
   private:
     MythPlayer               *m_player;
     VideoOutput              *m_videoOutput;
+    int                       m_videoSize;
     bool                      m_honorCutlist;
     bool                      m_eof;
     int                       m_maxFrames;
@@ -716,6 +759,7 @@ class TranscodeFrameQueue : public QRunnable
     bool                      m_isRunning;
     QMutex                    m_queueLock;
     QList<TranscodeFrameInfo> m_frameList;
+    QList<VideoFrame *>       m_available;
     QWaitCondition            m_frameWaitCond;
     QMutex                    m_frameWaitLock;
 };
@@ -1657,7 +1701,7 @@ int Transcode::TranscodeFile(const QString &inputname,
         LOG(VB_GENERAL, LOG_INFO, "Transcoding Video and Audio");
 
     TranscodeFrameQueue *frameQueue =
-        new TranscodeFrameQueue(GetPlayer(), videoOutput, honorCutList);
+        new TranscodeFrameQueue(GetPlayer(), videoOutput, vidSize, honorCutList);
     MThreadPool::globalInstance()->start(frameQueue, "TranscodeFrameQueue");
 
     QTime flagTime;
@@ -1794,7 +1838,7 @@ int Transcode::TranscodeFile(const QString &inputname,
                     dropvideo--;
                 }
             }
-            videoOutput->DoneDisplayingFrame(lastDecode);
+            frameQueue->Reuse(lastDecode);
             GetPlayer()->GetCC608Reader()->FlushTxtBuffers();
             lasttimecode = frame.timecode;
         }
@@ -2139,7 +2183,7 @@ int Transcode::TranscodeFile(const QString &inputname,
         curFrameNum++;
         frame.frameNumber = 1 + (curFrameNum << 1);
 
-        GetPlayer()->DiscardVideoFrame(lastDecode);
+        frameQueue->Reuse(lastDecode);
     }
 
     sws_freeContext(scontext);
