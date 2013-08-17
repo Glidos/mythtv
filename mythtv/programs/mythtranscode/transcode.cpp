@@ -404,6 +404,7 @@ class Cutter
     int64_t       videoFramesToCut;
     int64_t       audioFramesToCut;
     float         audioFramesPerVideoFrame;
+    int64_t       lastFrame;
     enum
     {
         MAXLEADIN  = 200,
@@ -469,6 +470,7 @@ class Cutter
         totalFrames = total;
         videoFramesToCut = 0;
         audioFramesToCut = 0;
+        lastFrame = -1;
         tracker.TrackerReset(0, totalFrames);
     }
 
@@ -476,6 +478,9 @@ class Cutter
     {
         if (active)
         {
+            if (currentFrame != lastFrame+1)
+                LOG(VB_GENERAL, LOG_INFO, QString("Clean cut: detected jump from %1 to %2").arg((long)lastFrame).arg((long)currentFrame));
+            lastFrame = currentFrame;
             if (videoFramesToCut == 0)
             {
                 uint64_t jumpTo = 0;
@@ -583,16 +588,19 @@ class Cutter
             // and record that we have
             if (videoFramesToCut > 0)
             {
+                LOG(VB_GENERAL, LOG_INFO, QString("Clean cut: not inhibiting dropframe - videoFramesToCut(%1)").arg((long)videoFramesToCut));
                 videoFramesToCut-- ;
                 return false;
             }
             else
             {
+                LOG(VB_GENERAL, LOG_INFO, QString("Clean cut: inhibiting dropframe"));
                 return true;
             }
         }
         else
         {
+            LOG(VB_GENERAL, LOG_INFO, QString("Clean cut: not inhibiting dropFrame because no audio to cut"));
             return false;
         }
     }
@@ -1789,6 +1797,7 @@ int Transcode::TranscodeFile(const QString &inputname,
                 {
                     if (!cutter || !cutter->InhibitDummyFrame())
                         fifow->FIFOWrite(0, frame.buf, vidSize);
+                    LOG(VB_GENERAL, LOG_INFO, "Inserting dummy frame");
 
                     curFrameNum++;
                     dropvideo--;
