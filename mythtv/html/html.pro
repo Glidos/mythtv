@@ -21,3 +21,4 @@ SOURCES += dummy.c
 
 OTHER_FILES += \
     video/gallery.qsp
+QMAKE_CFLAGS_ISYSTEM =

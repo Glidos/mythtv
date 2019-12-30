@@ -45,3 +45,4 @@ DEPENDPATH += ../../../../external/FFmpeg
 DEPENDPATH += ../../../../libs/libmythbase
 
 # NB the myth libraries need link link against Qt libs so CONFIG needs qt
+QMAKE_CFLAGS_ISYSTEM =

@@ -50,3 +50,4 @@ inc.files += ../include/nzmqt/nzmqt.hpp
 inc.path  = $${PREFIX}/include/
 
 INSTALLS += inc
+QMAKE_CFLAGS_ISYSTEM =

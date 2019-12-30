@@ -38,3 +38,4 @@ mingw {
         target.path = $${PREFIX}/bin
     }
 }
+QMAKE_CFLAGS_ISYSTEM =

@@ -96,3 +96,4 @@ Makefile.app {
 
 }
 
+QMAKE_CFLAGS_ISYSTEM =

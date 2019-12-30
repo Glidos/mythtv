@@ -55,3 +55,4 @@ SOURCES += main.cpp commandlineparser.cpp
 #The following line was inserted by qt3to4
 QT += xml sql network
 
+QMAKE_CFLAGS_ISYSTEM =

@@ -9,3 +9,4 @@ mingw:LIBS += $$EXTRA_LIBS
 
 # Input
 SOURCES += filter_kerneldeint.c
+QMAKE_CFLAGS_ISYSTEM =

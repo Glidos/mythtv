@@ -6,3 +6,4 @@ INCLUDEPATH += ../../libs/libmythtv \
 
 # Input
 SOURCES += filter_vflip.c
+QMAKE_CFLAGS_ISYSTEM =

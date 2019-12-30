@@ -10,3 +10,4 @@ POST_TARGETDEPS += ../../external/FFmpeg/libswresample/$$avLibName(swresample)
 POST_TARGETDEPS += ../../external/FFmpeg/libavutil/$$avLibName(avutil)
 POST_TARGETDEPS += ../../external/FFmpeg/libavcodec/$$avLibName(avcodec)
 POST_TARGETDEPS += ../../external/FFmpeg/libavformat/$$avLibName(avformat)
+QMAKE_CFLAGS_ISYSTEM =

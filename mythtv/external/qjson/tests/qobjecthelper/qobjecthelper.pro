@@ -17,3 +17,4 @@ win32 {
 }
 INCLUDEPATH +=  . \
                 ../../include
+QMAKE_CFLAGS_ISYSTEM =

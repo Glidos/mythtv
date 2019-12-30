@@ -26,3 +26,4 @@ SOURCES += messageutils.cpp mpegutils.cpp musicmetautils.cpp eitutils.cpp
 SOURCES += recordingutils.cpp
 
 mingw|win32-msvc*: LIBS += -lwinmm -lws2_32
+QMAKE_CFLAGS_ISYSTEM =

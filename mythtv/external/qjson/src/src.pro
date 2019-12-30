@@ -100,3 +100,4 @@ cppinc.path  += $${PREFIX}/include/mythtv/QJson/
 
 INSTALLS += cppinc
 
+QMAKE_CFLAGS_ISYSTEM =

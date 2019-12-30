@@ -147,3 +147,4 @@ android {
     SOURCES += ../libmyth/programtypes.cpp
     LIBS += -L../libmythbase -lmythbase-$${LIBVERSION}
 }
+QMAKE_CFLAGS_ISYSTEM =

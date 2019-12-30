@@ -39,3 +39,4 @@ LIBS += $$EXTRA_LIBS $$LATE_LIBS
 
 # Fix runtime linking on Ubuntu 17.10.
 linux:QMAKE_LFLAGS += -Wl,--disable-new-dtags
+QMAKE_CFLAGS_ISYSTEM =

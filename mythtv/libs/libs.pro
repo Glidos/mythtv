@@ -61,3 +61,4 @@ unittest.depends = libmyth-test libmythbase-test libmythtv-test libmythmetadata-
 unittest.target = test
 unittest.commands = ../programs/scripts/unittests.sh
 unix:QMAKE_EXTRA_TARGETS += unittest
+QMAKE_CFLAGS_ISYSTEM =

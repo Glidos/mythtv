@@ -3,3 +3,4 @@ include ( ../filter-avcodec.pro )
 
 # Input
 SOURCES += filter_crop.c
+QMAKE_CFLAGS_ISYSTEM =

@@ -20,3 +20,4 @@ android {
     # to discriminate filters in a flat directory structure
     TARGET = mythfilter$${TARGET}
 }
+QMAKE_CFLAGS_ISYSTEM =

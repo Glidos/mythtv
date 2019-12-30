@@ -23,3 +23,4 @@ HEADERS += fillutil.h   commandlineparser.h
 SOURCES += filldata.cpp channeldata.cpp
 SOURCES += xmltvparser.cpp fillutil.cpp
 SOURCES += main.cpp     commandlineparser.cpp
+QMAKE_CFLAGS_ISYSTEM =

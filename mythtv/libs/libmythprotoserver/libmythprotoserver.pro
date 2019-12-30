@@ -54,3 +54,4 @@ inc.files = $HEADERS
 INSTALLS += inc
 
 include ( ../libs-targetfix.pro )
+QMAKE_CFLAGS_ISYSTEM =

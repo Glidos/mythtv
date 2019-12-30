@@ -47,3 +47,4 @@ POST_TARGETDEPS += ../../external/minilzo/libmythminilzo-$${MYTH_LIB_EXT}
 }
 
 INCLUDEPATH += $$DEPENDPATH
+QMAKE_CFLAGS_ISYSTEM =

@@ -12,3 +12,4 @@ contains(CONFIG_POSTPROC, yes): SUBDIRS += postprocess
 
 # This filter is currently broken.
 # SUBDIRS += convert
+QMAKE_CFLAGS_ISYSTEM =

@@ -219,3 +219,4 @@ use_hidesyms {
 include ( ../libs-targetfix.pro )
 
 LIBS += $$EXTRA_LIBS $$LATE_LIBS
+QMAKE_CFLAGS_ISYSTEM =

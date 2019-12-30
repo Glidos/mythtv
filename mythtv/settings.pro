@@ -310,3 +310,4 @@ macx {
 } else {
     _RPATH_="-rpath="
 }
+QMAKE_CFLAGS_ISYSTEM =

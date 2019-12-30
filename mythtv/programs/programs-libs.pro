@@ -103,3 +103,4 @@ macx:using_firewire:using_backend:LIBS += -F$${CONFIG_MAC_AVC} -framework AVCVid
 macx:using_dvdv:LIBS += -lobjc
 
 LIBS += $$EXTRA_LIBS $$LATE_LIBS
+QMAKE_CFLAGS_ISYSTEM =

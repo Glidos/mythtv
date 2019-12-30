@@ -29,3 +29,4 @@ SOURCES += MythExternControl.cpp
 SOURCES += MythExternRecApp.cpp
 SOURCES += main.cpp
 
+QMAKE_CFLAGS_ISYSTEM =

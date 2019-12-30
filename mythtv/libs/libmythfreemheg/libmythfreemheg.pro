@@ -27,3 +27,4 @@ LIBS += $$EXTRA_LIBS
 LIBS += $$LATE_LIBS
 
 include ( ../libs-targetfix.pro )
+QMAKE_CFLAGS_ISYSTEM =

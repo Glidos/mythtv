@@ -39,3 +39,4 @@ trans.files += mythfrontend_zh_hk.qm
 INSTALLS += trans
 
 SOURCES += dummy.c
+QMAKE_CFLAGS_ISYSTEM =

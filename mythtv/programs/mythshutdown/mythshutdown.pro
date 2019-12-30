@@ -15,3 +15,4 @@ QMAKE_CLEAN += $(TARGET)
 # Input
 HEADERS += commandlineparser.h
 SOURCES += main.cpp commandlineparser.cpp
+QMAKE_CFLAGS_ISYSTEM =

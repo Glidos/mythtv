@@ -18,3 +18,4 @@ HEADERS += commandlineparser.h screenwizard.h
 SOURCES += main.cpp commandlineparser.cpp screenwizard.cpp
 
 using_x11:DEFINES += USING_X11
+QMAKE_CFLAGS_ISYSTEM =

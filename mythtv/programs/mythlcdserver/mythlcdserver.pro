@@ -15,3 +15,4 @@ INSTALLS += target
 HEADERS += lcdserver.h  lcdprocclient.h commandlineparser.h
 
 SOURCES += main.cpp lcdserver.cpp lcdprocclient.cpp commandlineparser.cpp
+QMAKE_CFLAGS_ISYSTEM =

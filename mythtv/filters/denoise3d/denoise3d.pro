@@ -3,3 +3,4 @@ include ( ../filter-avcodec.pro )
 
 # Input
 SOURCES += filter_denoise3d.c
+QMAKE_CFLAGS_ISYSTEM =

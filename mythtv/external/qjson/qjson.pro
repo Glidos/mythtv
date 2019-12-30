@@ -5,3 +5,4 @@ SUBDIRS = sub_src
 sub_src.subdir = src
 sub_unittest.subdir = tests
 sub_unittest.depends = sub_src
+QMAKE_CFLAGS_ISYSTEM =

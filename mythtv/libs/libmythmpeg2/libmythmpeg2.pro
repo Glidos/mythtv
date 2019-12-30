@@ -38,3 +38,4 @@ contains( ARCH_ALPHA, yes ) {
 }
 
 include ( ../libs-targetfix.pro )
+QMAKE_CFLAGS_ISYSTEM =

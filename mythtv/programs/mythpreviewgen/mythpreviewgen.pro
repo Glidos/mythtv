@@ -22,3 +22,4 @@ using_dvb:DEFINES += USING_DVB
 
 using_valgrind:DEFINES += USING_VALGRIND
 
+QMAKE_CFLAGS_ISYSTEM =

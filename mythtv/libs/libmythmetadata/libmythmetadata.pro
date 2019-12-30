@@ -125,3 +125,4 @@ INCLUDEPATH += $$POSTINC
 include ( ../libs-targetfix.pro )
 
 LIBS += $$EXTRA_LIBS $$LATE_LIBS -lexiv2
+QMAKE_CFLAGS_ISYSTEM =

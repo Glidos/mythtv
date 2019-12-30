@@ -158,3 +158,4 @@ include ( ../libs-targetfix.pro )
 
 LIBS += -L../../external/libudfread -lmythudfread-$$LIBVERSION
 LIBS += $$EXTRA_LIBS $$LATE_LIBS
+QMAKE_CFLAGS_ISYSTEM =

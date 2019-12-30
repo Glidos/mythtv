@@ -12,3 +12,4 @@ contains(ARCH_X86, yes) {
 }
 
 macx:debug:DEFINES -= MMX
+QMAKE_CFLAGS_ISYSTEM =

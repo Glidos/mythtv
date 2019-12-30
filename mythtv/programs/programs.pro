@@ -25,3 +25,4 @@ using_backend {
 }
 
 using_mythtranscode: SUBDIRS += mythtranscode
+QMAKE_CFLAGS_ISYSTEM =

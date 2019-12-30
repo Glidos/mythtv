@@ -62,3 +62,4 @@ mingw {
     }
 }
 
+QMAKE_CFLAGS_ISYSTEM =

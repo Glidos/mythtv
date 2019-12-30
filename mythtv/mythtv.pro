@@ -44,3 +44,4 @@ OTHER_FILES += \
     android/src/org/qtproject/qt5/android/bindings/QtActivity.java \
     android/src/org/qtproject/qt5/android/bindings/QtApplication.java
 
+QMAKE_CFLAGS_ISYSTEM =

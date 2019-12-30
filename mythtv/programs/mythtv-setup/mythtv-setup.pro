@@ -53,3 +53,4 @@ using_openmax {
     }
 }
 
+QMAKE_CFLAGS_ISYSTEM =

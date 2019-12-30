@@ -31,3 +31,4 @@ contains( CONFIG_LIBFFTW3, yes ) {
 LIBS += $$EXTRA_LIBS
 
 include ( ../libs-targetfix.pro )
+QMAKE_CFLAGS_ISYSTEM =

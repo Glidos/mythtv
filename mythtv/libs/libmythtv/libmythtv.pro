@@ -967,3 +967,4 @@ include ( ../libs-targetfix.pro )
 
 LIBS += $$LATE_LIBS
 DEFINES += MTV_API
+QMAKE_CFLAGS_ISYSTEM =

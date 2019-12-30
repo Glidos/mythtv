@@ -17,3 +17,4 @@ installinternetscripts.files = internetcontent metadata hardwareprofile
 INSTALLS += installscripts installinternetscripts
 
 SOURCES += dummy.c
+QMAKE_CFLAGS_ISYSTEM =

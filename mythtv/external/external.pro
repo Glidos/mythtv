@@ -16,3 +16,4 @@ SUBDIRS += minilzo
 SUBDIRS += libmythsoundtouch
 
 }
+QMAKE_CFLAGS_ISYSTEM =

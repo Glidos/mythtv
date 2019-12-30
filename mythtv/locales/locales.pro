@@ -15,3 +15,4 @@ INSTALLS += locales
 
 # Input
 SOURCES += dummy.c
+QMAKE_CFLAGS_ISYSTEM =

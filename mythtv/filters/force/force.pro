@@ -4,3 +4,4 @@ INCLUDEPATH += ../../libs/libmythtv
 
 # Input
 SOURCES += filter_force.c
+QMAKE_CFLAGS_ISYSTEM =

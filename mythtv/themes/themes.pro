@@ -21,3 +21,4 @@ INSTALLS += themes fonts
 
 # Input
 SOURCES += dummy.c
+QMAKE_CFLAGS_ISYSTEM =

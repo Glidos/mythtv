@@ -5,3 +5,4 @@ INCLUDEPATH += ../../libs/libmythtv ../../libs/libavcodec ../..
 
 # Input
 SOURCES += filter_adjust.c
+QMAKE_CFLAGS_ISYSTEM =

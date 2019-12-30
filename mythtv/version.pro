@@ -7,3 +7,4 @@
 
 HEADERS += $$PWD/libs/libmythbase/version.h
 DEPENDPATH += $$PWD/libs/libmythbase
+QMAKE_CFLAGS_ISYSTEM =
