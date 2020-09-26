@@ -3506,12 +3506,14 @@ void VideoDialog::ToggleWatched()
     }
 }
 
-void VideoDialog::OnVideoSearchListSelection(const RefCountHandler<MetadataLookup>& lookup)
+void VideoDialog::OnVideoSearchListSelection(RefCountHandler<MetadataLookup> lookup)
 {
     if (!lookup)
         return;
 
-    OnVideoSearchDone(lookup);
+    lookup->SetStep(kLookupData);
+    lookup->IncrRef();
+    m_metadataFactory->Lookup(lookup);
 }
 
 void VideoDialog::OnParentalChange(int amount)
