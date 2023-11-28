@@ -3924,6 +3924,7 @@ bool AvFormatDecoder::ProcessSubtitlePacket(AVStream *curstream, AVPacket *pkt)
     m_trackLock.lock();
     int subIdx = m_selectedTrack[kTrackTypeSubtitle].m_av_stream_index;
     int forcedSubIdx = m_selectedForcedSubtitleTrack.m_av_stream_index;
+    bool isSelectedForcedTrack = false;
     bool isForcedTrack = m_selectedTrack[kTrackTypeSubtitle].m_forced;
     m_trackLock.unlock();
 
@@ -3961,7 +3962,10 @@ bool AvFormatDecoder::ProcessSubtitlePacket(AVStream *curstream, AVPacket *pkt)
         subtitle.end_display_time += pts;
 
         if (pkt->stream_index == forcedSubIdx)
+        {
+            isSelectedForcedTrack = true;
             isForcedTrack = true;
+        }
     }
 
     if (gotSubtitles)
@@ -3980,7 +3984,8 @@ bool AvFormatDecoder::ProcessSubtitlePacket(AVStream *curstream, AVPacket *pkt)
                 .arg(subtitle.end_display_time));
 
         bool forcedon = m_parent->GetSubReader(pkt->stream_index)->AddAVSubtitle(
-                subtitle, curstream->codecpar->codec_id == AV_CODEC_ID_XSUB,
+                subtitle, isSelectedForcedTrack,
+                curstream->codecpar->codec_id == AV_CODEC_ID_XSUB,
                 m_parent->GetAllowForcedSubtitles());
          m_parent->EnableForcedSubtitles(forcedon || isForcedTrack);
     }
