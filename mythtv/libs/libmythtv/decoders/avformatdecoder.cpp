@@ -3923,6 +3923,7 @@ bool AvFormatDecoder::ProcessSubtitlePacket(AVStream *curstream, AVPacket *pkt)
 
     m_trackLock.lock();
     int subIdx = m_selectedTrack[kTrackTypeSubtitle].m_av_stream_index;
+    int forcedSubIdx = m_selectedForcedTrack[kTrackTypeSubtitle].m_av_stream_index;
     bool isForcedTrack = m_selectedTrack[kTrackTypeSubtitle].m_forced;
     m_trackLock.unlock();
 
@@ -3948,7 +3949,8 @@ bool AvFormatDecoder::ProcessSubtitlePacket(AVStream *curstream, AVPacket *pkt)
             }
         }
     }
-    else if (m_decodeAllSubtitles || pkt->stream_index == subIdx)
+    else if (m_decodeAllSubtitles || pkt->stream_index == subIdx
+                                  || pkt->stream_index == forcedSubIdx)
     {
         m_avCodecLock.lock();
         AVCodecContext *ctx = m_codecMap.GetCodecContext(curstream);
@@ -3957,6 +3959,9 @@ bool AvFormatDecoder::ProcessSubtitlePacket(AVStream *curstream, AVPacket *pkt)
 
         subtitle.start_display_time += pts;
         subtitle.end_display_time += pts;
+
+        if (pkt->stream_index == forcedSubIdx)
+            isForcedTrack = true;
     }
 
     if (gotSubtitles)
