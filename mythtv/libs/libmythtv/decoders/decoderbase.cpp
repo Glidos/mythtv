@@ -1157,7 +1157,7 @@ int DecoderBase::AutoSelectTrack(uint Type)
 
                 if (!m_tracks[Type][nonForcedTrack].m_forced)
                 {
-                    m_selectedForcedSubtitleTrack = m_tracks[Type][selTrack];
+                    m_selectedForcedTrack[Type] = m_tracks[Type][selTrack];
                     selTrack = nonForcedTrack;
                 }
             }

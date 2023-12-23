@@ -361,7 +361,7 @@ class DecoderBase
     std::array<sinfo_vec_t,kTrackTypeCount> m_tracks;
     std::array<StreamInfo, kTrackTypeCount> m_wantedTrack;
     std::array<StreamInfo, kTrackTypeCount> m_selectedTrack;
-    StreamInfo           m_selectedForcedSubtitleTrack;
+    std::array<StreamInfo, kTrackTypeCount> m_selectedForcedTrack;
 
     /// language preferences for auto-selection of streams
     std::vector<int>     m_languagePreference;

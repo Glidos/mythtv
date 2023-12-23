@@ -3923,7 +3923,7 @@ bool AvFormatDecoder::ProcessSubtitlePacket(AVStream *curstream, AVPacket *pkt)
 
     m_trackLock.lock();
     int subIdx = m_selectedTrack[kTrackTypeSubtitle].m_av_stream_index;
-    int forcedSubIdx = m_selectedForcedSubtitleTrack.m_av_stream_index;
+    int forcedSubIdx = m_selectedForcedTrack[kTrackTypeSubtitle].m_av_stream_index;
     bool isSelectedForcedTrack = false;
     bool isForcedTrack = m_selectedTrack[kTrackTypeSubtitle].m_forced;
     m_trackLock.unlock();
