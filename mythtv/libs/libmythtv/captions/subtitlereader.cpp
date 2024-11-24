@@ -64,6 +64,7 @@ bool SubtitleReader::AddAVSubtitle(AVSubtitle &subtitle,
     bool enableforced = false;
     bool forced = false;
 
+    LOG(VB_GENERAL, LOG_WARNING, QString("AddAVSubtitle(is_selected_forced_track = %1, allow_forced = %2)").arg(is_selected_forced_track).arg(allow_forced));
     if (m_avSubtitlesEnabled && is_selected_forced_track)
     {
         FreeAVSubtitle(subtitle);

@@ -3960,8 +3960,11 @@ bool AvFormatDecoder::ProcessSubtitlePacket(AVStream *curstream, AVPacket *pkt)
 
     if (gotSubtitles)
     {
+        LOG(VB_GENERAL, LOG_WARNING, QString("Got subtitles"));
         if (isForcedTrack)
         {
+            LOG(VB_GENERAL, LOG_WARNING, QString("It's a forced track"));
+            LOG(VB_GENERAL, LOG_WARNING, QString("It has %1 rects").arg(subtitle.num_rects));
             for (unsigned i = 0; i < subtitle.num_rects; i++)
             {
                 subtitle.rects[i]->flags |= AV_SUBTITLE_FLAG_FORCED;
@@ -3978,6 +3981,7 @@ bool AvFormatDecoder::ProcessSubtitlePacket(AVStream *curstream, AVPacket *pkt)
                 isForcedTrack,
                 (m_parent->GetAllowForcedSubtitles() && !mainTrackIsForced), false);
          m_parent->EnableForcedSubtitles(forcedon || isForcedTrack);
+        LOG(VB_GENERAL, LOG_WARNING, QString("Calling EnabledForcedSubtitles(%1)").arg(forcedon));
     }
 
     return true;
