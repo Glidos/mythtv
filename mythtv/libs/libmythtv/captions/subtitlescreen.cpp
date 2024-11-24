@@ -1463,8 +1463,10 @@ void SubtitleScreen::EnableSubtitles(int type, bool forced_only)
 
 void SubtitleScreen::DisableForcedSubtitles(void)
 {
+    LOG(VB_GENERAL, LOG_WARNING, QString("DisableForcedSubtitles"));
     if (kDisplayNone != m_subtitleType)
         return;
+    LOG(VB_GENERAL, LOG_WARNING, QString(" Really DisableForcedSubtitles"));
     ClearAllSubtitles();
     SetVisible(false);
     SetArea(MythRect());
