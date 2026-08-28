@@ -29,6 +29,16 @@ defineReplace(avLibName) {
         return($$temp)
 }
 
+# Link name for embedded FFmpeg wrappers.
+# Empty BUILDSUF must expand to the historical -lmythavcodec etc. so
+# default configure/make (no --build-suffix) is unchanged for packagers.
+defineReplace(mythFFmpegLib) {
+        isEmpty(BUILDSUF) {
+            return(-lmyth$$1)
+        }
+        return(-lmyth$$1$${BUILDSUF})
+}
+
 #check QT major version
 contains(QT_MAJOR_VERSION, 4) {
         error("Must build against Qt5 or higher")
