@@ -22,11 +22,26 @@ defineReplace(avLibName) {
         eval(LIBVERSION = $$major)
 
         temp = $$SLIBNAME_WITH_MAJOR_QT
-        temp = $$replace(temp, FULLNAME, $$NAME)
+        isEmpty(BUILDSUF) {
+            fullname = $$NAME
+        } else {
+            fullname = $$NAME$$BUILDSUF
+        }
+        temp = $$replace(temp, FULLNAME, $$fullname)
         temp = $$replace(temp, NAME,     $$NAME)
         temp = $$replace(temp, LIBMAJOR, $$LIBVERSION)
 
         return($$temp)
+}
+
+# Link name for embedded FFmpeg wrappers.
+# Empty BUILDSUF must expand to the historical -lmythavcodec etc. so
+# default configure/make (no --build-suffix) is unchanged for packagers.
+defineReplace(mythFFmpegLib) {
+        isEmpty(BUILDSUF) {
+            return(-lmyth$$1)
+        }
+        return(-lmyth$$1$${BUILDSUF})
 }
 
 #check QT major version
