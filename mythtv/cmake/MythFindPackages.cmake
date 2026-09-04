@@ -33,13 +33,16 @@ if(NOT CMAKE_CROSSCOMPILING
   if(TARGET PkgConfig::FFNVCODEC)
     # Take our cue from ffmpeg
     find_program(_ffmpeg mythffmpeg)
-    find_library(_avcodec mythavdevice)
+    # Empty MYTH_FFMPEG_BUILD_SUFFIX → mythavdevice (the default).
+    # With -37 → mythavdevice-37 (matches libmythavdevice-37.so).
+    find_library(_avcodec NAMES mythavdevice${MYTH_FFMPEG_BUILD_SUFFIX})
     cmake_path(GET _avcodec PARENT_PATH _avcodec_path)
     if(NOT EXISTS ${_ffmpeg})
       message(FATAL_ERROR "Cannot find our ffmpeg executable at ${_ffmpeg}")
     endif()
     if(NOT EXISTS ${_avcodec})
-      message(FATAL_ERROR "Cannot find our mythavdevice library ${_avcodec}")
+      message(FATAL_ERROR
+              "Cannot find our mythavdevice library (searched for mythavdevice${MYTH_FFMPEG_BUILD_SUFFIX}): ${_avcodec}")
     endif()
     execute_process(
       COMMAND ${CMAKE_COMMAND} -E env LD_LIBRARY_PATH=${_avcodec_path}
@@ -245,13 +248,16 @@ if(APPLE)
 
   # If ffmpeg disabled videotoolbox then disable it
   find_program(_ffmpeg mythffmpeg)
-  find_library(_avcodec mythavdevice)
+  # Empty MYTH_FFMPEG_BUILD_SUFFIX → mythavdevice (the default).
+  # With -37 → mythavdevice-37 (matches libmythavdevice-37.so).
+  find_library(_avcodec NAMES mythavdevice${MYTH_FFMPEG_BUILD_SUFFIX})
   cmake_path(GET _avcodec PARENT_PATH _avcodec_path)
   if(NOT EXISTS ${_ffmpeg})
     message(FATAL_ERROR "Cannot find our ffmpeg executable at ${_ffmpeg}")
   endif()
   if(NOT EXISTS ${_avcodec})
-    message(FATAL_ERROR "Cannot find our mythavdevice library ${_avcodec}")
+    message(FATAL_ERROR
+            "Cannot find our mythavdevice library (searched for mythavdevice${MYTH_FFMPEG_BUILD_SUFFIX}): ${_avcodec}")
   endif()
   execute_process(
     COMMAND ${CMAKE_COMMAND} -E env LD_LIBRARY_PATH=${_avcodec_path}
