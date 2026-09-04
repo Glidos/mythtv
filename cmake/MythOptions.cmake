@@ -26,6 +26,10 @@ set(MYTH_RUN_PREFIX
     CACHE PATH
           "The prefix where MythTV is expected to be at runtime, used by the Python bindings.  This may differ from MYTH_DEFAULT_PREFIX or CMAKE_INSTALL_PREFIX for packagers."
 )
+set(MYTH_FFMPEG_BUILD_SUFFIX
+    ""
+    CACHE STRING
+          "Suffix matching FFmpeg --build-suffix (e.g. -37). Empty = default libmythavcodec.pc names.")
 
 # Location for downloaded tarballs.
 #
