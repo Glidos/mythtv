@@ -5733,6 +5733,10 @@ ffmpeg_optset extra_cxxflags extra_ldflags target_os
 ffmpeg_optset pkg_config prefix libdir as objcc dep_cc host_cc
 ffmpeg_optset host_ld
 ffmpeg_optset ar nm ranlib
+# Only pass through when set. An empty --build-suffix must not be added to
+# ffopts so default packager configure/make matches the usual FFmpeg names.
+# ffmpeg_optset would emit --build_suffix (note the underscore); FFmpeg wants --build-suffix.
+test -n "$build_suffix" && ffopts="$ffopts '--build-suffix=$build_suffix'"
 ffmpeg_optenable cross_compile libmp3lame libx264 libx265 libvpx libxvid
 ffmpeg_optenable vdpau libxml2 libass dxva2
 ffmpeg_optenable libbluray libfontconfig libfreetype libiec61883
